@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Configuration {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  markdown    String?
+  blocks      String   // JSON stringified blocks state
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Landing {
+  id          String   @id @default(cuid())
+  name        String
+  configId    String?
+  html        String   // Full generated HTML
+  createdAt   DateTime @default(now())
+}

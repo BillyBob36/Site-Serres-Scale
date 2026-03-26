@@ -5,9 +5,7 @@
       "name": "landing-generator",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "autoPort": true,
-      "cwd": "landing-generator"
+      "port": 3000
     }
   ]
 }

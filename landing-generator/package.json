@@ -1,0 +1,40 @@
+{
+  "name": "landing-generator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "postbuild": "cp -r .next-build/static .next-build/standalone/.next-build/static && cp -r public .next-build/standalone/ && cp -r prisma .next-build/standalone/ && cp prisma.config.ts .next-build/standalone/",
+    "start": "node .next-build/standalone/server.js",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.2",
+    "@prisma/adapter-libsql": "^7.5.0",
+    "@prisma/client": "^7.5.0",
+    "lucide-react": "^1.6.0",
+    "next": "16.2.1",
+    "openai": "^6.32.0",
+    "prisma": "^7.5.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.5.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "babel-plugin-react-compiler": "1.0.0",
+    "better-sqlite3": "^12.8.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "@libsql/linux-x64-gnu": "^0.5.29"
+  }
+}
