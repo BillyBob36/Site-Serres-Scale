@@ -37,12 +37,36 @@ async function initDb() {
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  // Add slug column if table already exists without it (migration)
+  // SQLite does not allow UNIQUE on ADD COLUMN — ALTER with UNIQUE fails silently in try/catch
+  // and left production DBs without slug → Prisma INSERT 500.
   try {
-    await client.execute(`ALTER TABLE "Landing" ADD COLUMN "slug" TEXT UNIQUE`);
+    await client.execute(`ALTER TABLE "Landing" ADD COLUMN "slug" TEXT`);
     console.log("Added slug column to Landing table");
   } catch (e) {
     // Column already exists, ignore
+  }
+  try {
+    await client.execute(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "Landing_slug_key" ON "Landing"("slug")`,
+    );
+  } catch (e) {
+    console.warn("Landing slug unique index:", e?.message || e);
+  }
+
+  // Older DBs: Configuration palette columns (see prisma/migrations)
+  for (const [col, sqlType] of [
+    ["palettes", "TEXT"],
+    ["activePaletteLabel", "TEXT"],
+    ["blockPalettes", "TEXT"],
+  ]) {
+    try {
+      await client.execute(
+        `ALTER TABLE "Configuration" ADD COLUMN "${col}" ${sqlType}`,
+      );
+      console.log(`Added Configuration.${col}`);
+    } catch (e) {
+      /* already exists */
+    }
   }
 
   await client.execute(`CREATE TABLE IF NOT EXISTS "_prisma_migrations" (

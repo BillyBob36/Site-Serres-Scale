@@ -2,11 +2,16 @@ import { PrismaClient } from "../generated/prisma/client";
 import path from "path";
 import fs from "fs";
 
-// Support both DATABASE_URL (file:path) and DATABASE_PATH (raw path)
+// Support both DATABASE_URL (file:path) and DATABASE_PATH (raw path).
+// Default must match init-db.js on Azure: without env, init uses /home/data/landing.db
+// while Prisma previously used cwd/dev.db → wrong file, missing columns, POST 500.
 const rawUrl = process.env.DATABASE_URL;
 const DB_PATH = rawUrl?.startsWith("file:")
   ? rawUrl.replace(/^file:/, "")
-  : process.env.DATABASE_PATH || path.join(process.cwd(), "dev.db");
+  : process.env.DATABASE_PATH ||
+    (process.env.NODE_ENV === "production"
+      ? "/home/data/landing.db"
+      : path.join(process.cwd(), "dev.db"));
 
 // Ensure directory exists (important for Azure /home/data/)
 const dbDir = path.dirname(DB_PATH);
