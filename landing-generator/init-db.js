@@ -21,6 +21,9 @@ async function initDb() {
     "description" TEXT,
     "markdown" TEXT,
     "blocks" TEXT NOT NULL,
+    "palettes" TEXT,
+    "activePaletteLabel" TEXT,
+    "blockPalettes" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -28,10 +31,19 @@ async function initDb() {
   await client.execute(`CREATE TABLE IF NOT EXISTS "Landing" (
     "id" TEXT PRIMARY KEY NOT NULL,
     "name" TEXT NOT NULL,
+    "slug" TEXT UNIQUE,
     "configId" TEXT,
     "html" TEXT NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Add slug column if table already exists without it (migration)
+  try {
+    await client.execute(`ALTER TABLE "Landing" ADD COLUMN "slug" TEXT UNIQUE`);
+    console.log("Added slug column to Landing table");
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   await client.execute(`CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
     "id" TEXT PRIMARY KEY NOT NULL,

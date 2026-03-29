@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "cp -r .next-build/static .next-build/standalone/.next-build/static && cp -r public .next-build/standalone/ && cp -r prisma .next-build/standalone/ && cp prisma.config.ts .next-build/standalone/",
+    "postbuild": "shx cp -r .next-build/static .next-build/standalone/.next-build/static && shx cp -r public .next-build/standalone && shx cp -r prisma .next-build/standalone && shx cp prisma.config.ts .next-build/standalone",
     "start": "node .next-build/standalone/server.js",
     "lint": "eslint"
   },
@@ -13,6 +13,7 @@
     "@libsql/client": "^0.17.2",
     "@prisma/adapter-libsql": "^7.5.0",
     "@prisma/client": "^7.5.0",
+    "jose": "^6.2.2",
     "lucide-react": "^1.6.0",
     "next": "16.2.1",
     "openai": "^6.32.0",
@@ -31,6 +32,7 @@
     "better-sqlite3": "^12.8.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
+    "shx": "^0.4.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

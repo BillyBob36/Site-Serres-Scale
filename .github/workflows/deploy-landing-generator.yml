@@ -1,0 +1,53 @@
+# App Service = NODE|22-lts + bash startup.sh (pas d’image Docker).
+# Build Next standalone sur Ubuntu, ZIP du contenu de .next-build/standalone → wwwroot.
+
+name: Deploy landing-generator to Azure
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "landing-generator/**"
+      - ".github/workflows/deploy-landing-generator.yml"
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: serres-landing-gen
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: landing-generator/package-lock.json
+
+      - name: Install & build
+        working-directory: landing-generator
+        env:
+          DATABASE_URL: file:/tmp/ci-placeholder.db
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: Package for Azure (standalone + scripts)
+        working-directory: landing-generator
+        run: |
+          cp startup.sh init-db.js .next-build/standalone/
+          cd .next-build/standalone
+          zip -r ../app.zip .
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: landing-generator/.next-build/app.zip

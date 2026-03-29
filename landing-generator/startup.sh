@@ -6,8 +6,8 @@ mkdir -p /home/data
 
 cd /home/site/wwwroot
 
-# Run Prisma migrations
-node node_modules/prisma/build/index.js migrate deploy || echo "Migration: skipped or up to date"
+# Initialize database tables (uses @libsql/client, no native deps needed)
+node init-db.js || echo "DB init: skipped or failed"
 
 # Start standalone server (HOSTNAME and PORT set via Azure app settings)
 exec node server.js

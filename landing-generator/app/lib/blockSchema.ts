@@ -23,6 +23,10 @@ export interface BlockField {
   value: string;
   mode?: FieldMode; // optionnel pour compatibilité, défaut géré dans page.tsx
   imagePrompt?: string; // prompt spécifique pour génération d'image
+  imageStyle?: string;   // style visuel complémentaire au prompt image
+  targetWidth?: number;  // largeur cible pour crop (pixels)
+  targetHeight?: number; // hauteur cible pour crop (pixels)
+  originalImageUrl?: string; // URL de l'image originale du site modèle
 }
 
 export interface Block {
@@ -189,9 +193,12 @@ export const defaultBlockSchema: Block[] = [
         id: "hero_image",
         label: "Image hero",
         type: "image",
-        prompt: `Décris l'image idéale pour la section hero de cette landing page.`,
-        imagePrompt: `Photographie professionnelle, éclairage naturel, grand angle. Montre l'équipement ou la solution technique décrite dans le document .md, installée dans son environnement réel d'utilisation (exploitation agricole, bâtiment industriel, etc.). L'image doit inspirer confiance et modernité. Style éditorial, pas de texte incrusté, pas de logo. Résolution haute, format paysage 16:10. Couleurs chaudes et lumineuses.`,
+        prompt: `Génère un prompt de génération d'image pour la section hero de cette landing page. Le prompt doit décrire précisément le sujet en rapport avec le document .md, le cadrage (grand angle, plan moyen, etc.), l'éclairage, et l'ambiance. Ne décris PAS le style visuel (il sera ajouté séparément).`,
+        imagePrompt: "",
         value: "",
+        targetWidth: 1306,
+        targetHeight: 816,
+        originalImageUrl: "https://billybob36.github.io/site-serres/images/pdf-extracts/page1_img1_1306x816.jpeg",
       },
       {
         id: "hero_stats",
@@ -291,9 +298,11 @@ export const defaultBlockSchema: Block[] = [
         id: "solution_image",
         label: "Image solution / schéma",
         type: "image",
-        prompt: `Décris l'image pour illustrer la solution technique.`,
-        imagePrompt: `Infographie technique épurée, style flat design professionnel. Illustre le principe de fonctionnement de la solution décrite dans le document. Schéma avec flèches montrant le flux d'énergie ou de matière. Palette de couleurs : vert (#2D9F46), jaune (#FFE500), blanc, noir. Pas de texte incrusté. Format carré 1:1.`,
+        prompt: `Génère un prompt de génération d'image pour illustrer la solution technique décrite dans le document .md. Décris le sujet (schéma, infographie, illustration), les éléments à montrer (flux, composants, processus). Ne décris PAS le style visuel (il sera ajouté séparément).`,
+        imagePrompt: "",
         value: "",
+        targetWidth: 400,
+        targetHeight: 400,
       },
     ],
   },
@@ -407,9 +416,12 @@ export const defaultBlockSchema: Block[] = [
         id: "partenaire_image",
         label: "Image partenariat",
         type: "image",
-        prompt: `Décris l'image pour le bloc partenaire.`,
-        imagePrompt: `Photographie professionnelle montrant une poignée de main ou une réunion entre deux professionnels dans un cadre lié au secteur du document. Éclairage studio doux, arrière-plan flouté montrant l'environnement professionnel. Ton de confiance et de collaboration. Format paysage 16:9.`,
+        prompt: `Génère un prompt de génération d'image pour le bloc partenaire. Décris la scène (réunion, poignée de main, collaboration) en rapport avec le secteur du document .md. Ne décris PAS le style visuel (il sera ajouté séparément).`,
+        imagePrompt: "",
         value: "",
+        targetWidth: 878,
+        targetHeight: 470,
+        originalImageUrl: "https://billybob36.github.io/site-serres/images/pdf-extracts/page1_img2_878x470.jpeg",
       },
     ],
   },

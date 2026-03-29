@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "../../lib/db";
+import { getDb } from "../../lib/db";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const prisma = await getDb();
   const { id } = await params;
   const landing = await prisma.landing.findUnique({ where: { id } });
   if (!landing) {

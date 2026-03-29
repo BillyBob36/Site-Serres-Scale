@@ -49,3 +49,7 @@ next-env.d.ts
 
 # deployment artifacts
 *.tgz
+
+.windsurf/
+*.db-shm
+*.db-wal

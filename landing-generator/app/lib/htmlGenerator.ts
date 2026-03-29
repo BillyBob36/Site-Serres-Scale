@@ -41,7 +41,73 @@ function tryJSON(s: string): unknown[] | null {
   }
 }
 
-export function generateLandingHTML(blocks: Block[]): string {
+// Default palette colors (from site modèle) used as placeholders in templates
+// 0: Primary Green  1: Accent Yellow  2: Near-black  3: White  4: Medium gray
+// 5: Off-white bg   6: Dark gray text  7: Light gray/borders  8: Dark green CTA  9: Border gray
+const REF_COLORS = [
+  "#2D9F46", "#FFE500", "#1A1A1A", "#ffffff", "#555555",
+  "#f5f5f0", "#333333", "#EFEFEF", "#1B7A2B", "#BCBCBC",
+];
+
+// Map all color variants in the HTML to their palette position
+const REF_VARIANTS: [RegExp, number][] = [
+  // 0 — Primary Green
+  [/#2D9F46/gi, 0],
+  [/#009B3A/gi, 0],
+  [/#00A84A/gi, 0],
+  // 1 — Accent Yellow
+  [/#FFE500/gi, 1],
+  [/#FFF9E6/gi, 1],
+  // 2 — Near-black / body text (order matters: longer hex first)
+  [/#1A1A1A/gi, 2],
+  [/#1F1F1F/gi, 2],
+  [/#111111/gi, 2],
+  [/#111(?=[^0-9a-fA-F]|$)/g, 2],
+  [/#000(?=[^0-9a-fA-F]|$)/g, 2],
+  // 3 — White
+  [/#ffffff/gi, 3],
+  [/#FFFFFF/g, 3],
+  [/#fff(?=[^0-9a-fA-F]|$)/g, 3],
+  [/#FFF(?=[^0-9a-fA-F]|$)/g, 3],
+  // 4 — Medium gray
+  [/#555555/gi, 4],
+  [/#555(?=[^0-9a-fA-F]|$)/g, 4],
+  [/#444(?=[^0-9a-fA-F]|$)/g, 4],
+  [/#3A3A3A/gi, 4],
+  [/#353535/gi, 4],
+  // 5 — Off-white background
+  [/#f5f5f0/gi, 5],
+  [/#F5F5F5/gi, 5],
+  [/#F7F7F7/gi, 5],
+  [/#F0F0F0/gi, 5],
+  // 6 — Dark gray text (headings, links)
+  [/#333333/gi, 6],
+  [/#333(?=[^0-9a-fA-F]|$)/g, 6],
+  [/#222(?=[^0-9a-fA-F]|$)/g, 6],
+  // 7 — Light gray / borders / dividers
+  [/#EFEFEF/gi, 7],
+  [/#ECECEC/gi, 7],
+  [/#E0E0E0/gi, 7],
+  [/#CFCFCF/gi, 7],
+  [/#C9E4D6/gi, 7],
+  // 8 — Dark green CTA
+  [/#1B7A2B/gi, 8],
+  // 9 — Border gray
+  [/#BCBCBC/gi, 9],
+];
+
+function applyPalette(html: string, palette?: string[]): string {
+  if (!palette || palette.length === 0) return html;
+  let result = html;
+  for (const [regex, idx] of REF_VARIANTS) {
+    if (palette[idx]) {
+      result = result.replace(regex, palette[idx]);
+    }
+  }
+  return result;
+}
+
+export function generateLandingHTML(blocks: Block[], palette?: string[]): string {
   const enabled = blocks.filter((b) => b.enabled);
   let html = "";
   for (const b of enabled) {
@@ -61,7 +127,7 @@ export function generateLandingHTML(blocks: Block[]): string {
     }
   }
 
-  return `<!DOCTYPE html>
+  const fullHtml = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
@@ -79,6 +145,8 @@ body{font-family:'Poppins',sans-serif;margin:0;padding:0;overflow-x:hidden}
 ${html}
 </body>
 </html>`;
+
+  return applyPalette(fullHtml, palette);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -167,7 +235,7 @@ function genHero(b: Block): string {
     </div>
     <div class="w-full lg:w-[48%] relative flex flex-col items-center justify-between bg-white p-0 overflow-hidden">
       <div class="flex-1 w-full flex items-center justify-center relative">
-        <img src="${IMG}/images/pdf-extracts/page1_img1_1306x816.jpeg" alt="Déshumidificateur" class="w-full h-auto object-cover"/>
+        <img src="${gv(b, "hero_image") || `${IMG}/images/pdf-extracts/page1_img1_1306x816.jpeg`}" alt="Déshumidificateur" class="w-full h-auto object-cover"/>
         <div class="absolute bottom-0 left-0 right-0 h-16" style="background:linear-gradient(to top,rgba(255,255,255,0.9),transparent)"></div>
       </div>
       ${stats ? `<div class="flex flex-wrap gap-2 sm:flex-nowrap sm:gap-3 w-full justify-center lg:justify-end relative z-10 px-3 sm:px-4 pb-3 sm:pb-4">
@@ -319,7 +387,7 @@ function genPartenaire(b: Block): string {
 <section id="bloc-partenaire" class="w-full py-6 sm:py-8 lg:py-12 px-4 sm:px-8 lg:px-16 overflow-hidden" style="background-color:#fff">
   <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-14 items-center">
     <div class="lg:w-[48%] flex flex-col items-center justify-center gap-4 w-full">
-      <img src="${IMG}/images/pdf-extracts/page1_img2_878x470.jpeg" alt="Partenariat" class="w-full object-contain rounded-lg"/>
+      <img src="${gv(b, "partenaire_image") || `${IMG}/images/pdf-extracts/page1_img2_878x470.jpeg`}" alt="Partenariat" class="w-full object-contain rounded-lg"/>
       <div class="rounded-xl px-5 sm:px-10 py-4 sm:py-6 text-center w-fit border" style="background-color:#fff;border-color:#2D9F46">
         <p class="text-[13px] font-medium" style="color:#2D9F46;font-family:'Poppins',sans-serif">Partenariat officiel depuis</p>
         <p class="text-[2.8rem] sm:text-[4rem] font-extrabold italic mt-1 leading-none" style="color:#2D9F46;font-family:'Bodoni Moda',serif">2022</p>

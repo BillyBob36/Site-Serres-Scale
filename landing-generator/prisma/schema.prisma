@@ -8,18 +8,22 @@ datasource db {
 }
 
 model Configuration {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  markdown    String?
-  blocks      String   // JSON stringified blocks state
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String
+  description        String?
+  markdown           String?
+  blocks             String   // JSON stringified blocks state
+  palettes           String?  // JSON stringified palettes array
+  activePaletteLabel String?
+  blockPalettes      String?  // JSON stringified block→palette mapping
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Landing {
   id          String   @id @default(cuid())
   name        String
+  slug        String?  @unique // URL-friendly name for public access: /mon-slug
   configId    String?
   html        String   // Full generated HTML
   createdAt   DateTime @default(now())
