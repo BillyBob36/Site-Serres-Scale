@@ -1,5 +1,6 @@
 # App Service = NODE|22-lts + bash startup.sh (pas d’image Docker).
 # Build Next standalone sur Ubuntu, ZIP du contenu de .next-build/standalone → wwwroot.
+# Auth : OpenID Connect (secrets AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID) — pas de profil de publication.
 
 name: Deploy landing-generator to Azure
 
@@ -13,6 +14,10 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: serres-landing-gen
+
+permissions:
+  id-token: write # OIDC vers Azure
+  contents: read
 
 jobs:
   build-and-deploy:
@@ -45,11 +50,12 @@ jobs:
           cd .next-build/standalone
           zip -r ../app.zip .
 
-      # Obligatoire pour webapps-deploy@v3 : session Azure (sinon « No credentials found »).
-      - name: Azure Login
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
