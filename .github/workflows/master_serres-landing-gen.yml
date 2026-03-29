@@ -1,5 +1,5 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
+# Déploiement App Service (Node 22 + startup.sh) — build Next.js standalone dans landing-generator/, ZIP → wwwroot.
+# Secrets OIDC créés par le Centre de déploiement Azure (noms AZUREAPPSERVICE_*).
 
 name: Build and deploy Node.js app to Azure Web App - serres-landing-gen
 
@@ -7,41 +7,61 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "landing-generator/**"
+      - ".github/workflows/master_serres-landing-gen.yml"
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js version
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: landing-generator/package-lock.json
 
-      - name: Upload artifact for deployment job
+      - name: npm ci, Prisma, Next build
+        working-directory: landing-generator
+        env:
+          DATABASE_URL: file:/tmp/ci-placeholder.db
+        run: |
+          npm ci
+          npx prisma generate
+          npm run build
+
+      - name: ZIP standalone pour Azure
+        working-directory: landing-generator
+        run: |
+          cp startup.sh init-db.js .next-build/standalone/
+          cd .next-build/standalone
+          zip -r ../app.zip .
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: landing-generator/.next-build/app.zip
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
           name: node-app
-      
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -49,11 +69,9 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5112DD1FC3A048D4A5326DA97BADF2A1 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_53BC0587688342D781E4638915BF68BF }}
 
-      - name: 'Deploy to Azure Web App'
-        id: deploy-to-webapp
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'serres-landing-gen'
-          slot-name: 'Production'
-          package: .
-          
+          app-name: "serres-landing-gen"
+          slot-name: "Production"
+          package: app.zip
