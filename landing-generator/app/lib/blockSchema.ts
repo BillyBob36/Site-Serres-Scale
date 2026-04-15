@@ -215,7 +215,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc4",
-    name: "Bloc 4 — Défi (problème client)",
+    name: "Bloc 2 — Défi (problème client)",
     description: "Expose les problèmes du client et pourquoi il doit agir",
     enabled: true,
     fields: [
@@ -255,7 +255,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc5",
-    name: "Bloc 5 — Solution technique",
+    name: "Bloc 3 — Solution technique",
     description: "Présente la solution, son fonctionnement et ses avantages",
     enabled: true,
     fields: [
@@ -312,7 +312,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc3",
-    name: "Bloc 3 — Confiance & preuves sociales",
+    name: "Bloc 4 — Confiance & preuves sociales",
     description: "Chiffres clés, partenaires, témoignage client",
     enabled: true,
     fields: [
@@ -373,7 +373,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc2",
-    name: "Bloc 2 — Partenaire stratégique",
+    name: "Bloc 5 — Partenaire stratégique",
     description: "Mise en avant du partenariat et de l'accompagnement unique",
     enabled: true,
     fields: [
@@ -431,7 +431,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc9",
-    name: "Bloc 9 — Dispositif de financement",
+    name: "Bloc 6 — Dispositif de financement",
     description: "Explication détaillée du mécanisme de financement avec calculs",
     enabled: true,
     fields: [
@@ -492,7 +492,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc10",
-    name: "Bloc 10 — Conditions d'éligibilité",
+    name: "Bloc 7 — Conditions d'éligibilité",
     description: "Checklist des conditions pour bénéficier du dispositif",
     enabled: true,
     fields: [
@@ -539,7 +539,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc12",
-    name: "Bloc 12 — Méthode d'accompagnement",
+    name: "Bloc 8 — Méthode d'accompagnement",
     description: "Les 5 étapes du processus, de l'étude à la prime",
     enabled: true,
     fields: [
@@ -593,7 +593,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc13",
-    name: "Bloc 13 — FAQ",
+    name: "Bloc 9 — FAQ",
     description: "Questions-réponses pour lever les derniers freins",
     enabled: true,
     fields: [
@@ -633,7 +633,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc15",
-    name: "Bloc 15 — Formulaire de contact",
+    name: "Bloc 10 — Formulaire de contact",
     description: "Formulaire de conversion avec accroche et réassurance",
     enabled: true,
     fields: [
@@ -673,7 +673,7 @@ export const defaultBlockSchema: Block[] = [
   // ═══════════════════════════════════════════════
   {
     id: "bloc16",
-    name: "Bloc 16 — Footer",
+    name: "Bloc 11 — Footer",
     description: "Pied de page avec description, liens et mentions",
     enabled: true,
     fields: [

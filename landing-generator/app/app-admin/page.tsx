@@ -31,11 +31,12 @@ import {
 } from "lucide-react";
 
 type ConfigSummary = { id: string; name: string; description?: string | null; updatedAt: string };
-type LandingSummary = { id: string; name: string; slug?: string | null; createdAt: string };
+type LandingSummary = { id: string; name: string; slug?: string | null; showInSummary?: boolean; category?: string | null; createdAt: string };
 type Palette = { label: string; colors: string[] };
 import { defaultBlockSchema, Block, BlockField, FieldMode } from "../lib/blockSchema";
 import { generateLandingHTML } from "../lib/htmlGenerator";
 import ImageCropModal from "../components/ImageCropModal";
+import { useTranslation } from "../lib/i18n/i18nContext";
 
 const DEFAULT_PALETTE: Palette = {
   label: "A",
@@ -54,6 +55,7 @@ const DEFAULT_PALETTE: Palette = {
 };
 
 export default function Home() {
+  const { t, lang, setLang, availableLangs } = useTranslation();
   const [markdown, setMarkdown] = useState("");
   const [blocks, setBlocks] = useState<Block[]>(() => {
     const raw: Block[] = JSON.parse(JSON.stringify(defaultBlockSchema));
@@ -93,6 +95,7 @@ export default function Home() {
   const [landings, setLandings] = useState<LandingSummary[]>([]);
   const [currentConfigId, setCurrentConfigId] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSaveChoiceModal, setShowSaveChoiceModal] = useState(false);
   const [showConfigsPanel, setShowConfigsPanel] = useState(false);
   const [showLandingsPanel, setShowLandingsPanel] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -326,7 +329,12 @@ export default function Home() {
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
-      updateFieldValue(blockId, field.id, data.image);
+      let finalImage = data.image;
+      if (field.targetWidth && field.targetHeight && finalImage) {
+        const { autoCropToTarget } = await import("../lib/imageCrop");
+        finalImage = await autoCropToTarget(finalImage, field.targetWidth, field.targetHeight);
+      }
+      updateFieldValue(blockId, field.id, finalImage);
       setStatusMsg(`Image "${field.label}" générée`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur inconnue";
@@ -615,10 +623,17 @@ export default function Home() {
           });
           const data = await res.json();
           if (!data.error && data.image) {
+            let finalImg = data.image;
+            if (field.targetWidth && field.targetHeight) {
+              try {
+                const { autoCropToTarget } = await import("../lib/imageCrop");
+                finalImg = await autoCropToTarget(finalImg, field.targetWidth, field.targetHeight);
+              } catch { /* use original if crop fails */ }
+            }
             setBlocks((prev) =>
               prev.map((b) =>
                 b.id === blockId
-                  ? { ...b, fields: b.fields.map((f) => f.id === field.id ? { ...f, value: data.image } : f) }
+                  ? { ...b, fields: b.fields.map((f) => f.id === field.id ? { ...f, value: finalImg } : f) }
                   : b
               )
             );
@@ -643,21 +658,39 @@ export default function Home() {
     loadConfigs();
   };
 
-  const saveConfig = async () => {
-    if (!saveName.trim()) return;
+  const saveConfigNew = async (name?: string) => {
+    const n = (name ?? saveName).trim();
+    if (!n) return;
+    try {
+      const body = { name: n, description: saveDesc, markdown, blocks: JSON.stringify(blocks), palettes: JSON.stringify(palettes), activePaletteLabel, blockPalettes: JSON.stringify(blockPalettes) };
+      const res = await fetch("/api/configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      setCurrentConfigId(data.id);
+      setSaveName(n);
+      setStatusMsg(`Config "${n}" sauvegardée`);
+      setShowSaveModal(false);
+      setShowSaveChoiceModal(false);
+    } catch { setStatusMsg("Erreur lors de la sauvegarde"); }
+  };
+
+  const saveConfigUpdate = async () => {
+    if (!saveName.trim() || !currentConfigId) return;
     try {
       const body = { name: saveName, description: saveDesc, markdown, blocks: JSON.stringify(blocks), palettes: JSON.stringify(palettes), activePaletteLabel, blockPalettes: JSON.stringify(blockPalettes) };
-      if (currentConfigId) {
-        await fetch(`/api/configs/${currentConfigId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        setStatusMsg(`Config "${saveName}" mise à jour`);
-      } else {
-        const res = await fetch("/api/configs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-        const data = await res.json();
-        setCurrentConfigId(data.id);
-        setStatusMsg(`Config "${saveName}" sauvegardée`);
-      }
+      await fetch(`/api/configs/${currentConfigId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      setStatusMsg(`Config "${saveName}" mise à jour`);
       setShowSaveModal(false);
+      setShowSaveChoiceModal(false);
     } catch { setStatusMsg("Erreur lors de la sauvegarde"); }
+  };
+
+  const handleSaveClick = () => {
+    setSaveName(saveName || "Config sans nom");
+    if (currentConfigId) {
+      setShowSaveChoiceModal(true);
+    } else {
+      setShowSaveModal(true);
+    }
   };
 
   const loadConfig = async (id: string) => {
@@ -753,6 +786,27 @@ export default function Home() {
     }
   };
 
+  const CATEGORIES = ["Santé", "Collectivité", "Résidentiel", "Commerce", "Bureaux", "Hôtellerie", "Distribution", "Industrie", "Agriculture"] as const;
+
+  const updateLandingMeta = async (id: string, patch: { showInSummary?: boolean; category?: string }) => {
+    try {
+      const res = await fetch(`/api/landings/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setLandings((prev) =>
+        prev.map((l) =>
+          l.id === id
+            ? { ...l, showInSummary: data.showInSummary ?? l.showInSummary, category: data.category ?? l.category }
+            : l,
+        ),
+      );
+    } catch { /* silent */ }
+  };
+
   const copyLink = (id: string, slug?: string | null) => {
     const url = slug ? `${window.location.origin}/${slug}` : `${window.location.origin}/l/${id}`;
     navigator.clipboard.writeText(url);
@@ -806,35 +860,35 @@ export default function Home() {
       {/* TOP BAR */}
       <header className="flex items-center justify-between px-6 py-3 bg-zinc-900 border-b border-zinc-800 shrink-0">
         <div className="flex items-center gap-3">
-          <Sparkles size={20} className="text-yellow-400" />
+          <Sparkles size={20} className="text-green-400" />
           <h1 className="text-lg font-semibold tracking-tight">
-            Landing Generator
+            {t("app_title")}
           </h1>
-          <span className="text-xs bg-yellow-400/20 text-yellow-400 px-2 py-0.5 rounded-full font-medium">
-            GPT-5.4-mini
+          <span className="text-xs bg-green-400/20 text-green-400 px-2 py-0.5 rounded-full font-medium">
+            {t("model_badge")}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={generateAll}
             disabled={generating || !markdown.trim()}
-            className="flex items-center gap-2 bg-yellow-400 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-300 disabled:opacity-40 disabled:cursor-not-allowed transition"
+            className="flex items-center gap-2 bg-green-500 text-black px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
           >
             {generating ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <Wand2 size={16} />
             )}
-            Tout générer
+            {t("btn_generate_all")}
           </button>
           <div className="w-px h-6 bg-zinc-700" />
           <button
-            onClick={() => { setSaveName(saveName || "Config sans nom"); setShowSaveModal(true); }}
+            onClick={handleSaveClick}
             className="flex items-center gap-2 bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-600 transition"
-            title="Sauvegarder la configuration"
+            title={t("btn_save")}
           >
             <Save size={15} />
-            {currentConfigId ? "Mettre à jour" : "Sauvegarder"}
+            {t("btn_save")}
           </button>
           <button
             onClick={openConfigsPanel}
@@ -842,7 +896,7 @@ export default function Home() {
             title="Ouvrir une configuration sauvegardée"
           >
             <FolderOpen size={15} />
-            Ouvrir
+            {t("btn_configs")}
           </button>
           <div className="w-px h-6 bg-zinc-700" />
           <button
@@ -850,7 +904,7 @@ export default function Home() {
             className="flex items-center gap-2 bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-600 transition"
           >
             <Eye size={16} />
-            Aperçu
+            {t("btn_preview")}
           </button>
           <button
             onClick={downloadHTML}
@@ -862,28 +916,44 @@ export default function Home() {
           <button
             onClick={() => { setSaveLandingName("Landing " + new Date().toLocaleDateString("fr-FR")); setSaveLandingModal(true); }}
             className="flex items-center gap-2 bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-600 transition"
-            title="Sauvegarder la landing et obtenir un lien"
+            title={t("btn_publish")}
           >
             <Globe size={15} />
-            Publier
+            {t("btn_publish")}
           </button>
           <button
             onClick={openLandingsPanel}
             className="flex items-center gap-2 bg-zinc-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-zinc-600 transition"
-            title="Voir les landings publiées"
+            title={t("btn_landings")}
           >
             <Globe size={15} className="text-green-400" />
-            Landings
+            {t("btn_landings")}
           </button>
           <div className="w-px h-6 bg-zinc-700" />
+          {/* Language selector */}
+          <div className="flex items-center bg-zinc-800 rounded-lg overflow-hidden">
+            {availableLangs.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => setLang(l.code)}
+                className={`px-2.5 py-1.5 text-[11px] font-bold transition ${
+                  lang === l.code
+                    ? "bg-green-500 text-black"
+                    : "text-zinc-400 hover:text-zinc-200"
+                }`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             onClick={() => void logout()}
             className="flex items-center gap-2 bg-zinc-800 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 transition"
-            title="Déconnexion"
+            title={t("btn_logout")}
           >
             <LogOut size={15} />
-            Déconnexion
+            {t("btn_logout")}
           </button>
         </div>
       </header>
@@ -891,10 +961,10 @@ export default function Home() {
       {/* STATUS BAR */}
       {statusMsg && (
         <div className="px-6 py-1.5 bg-zinc-900/50 border-b border-zinc-800 text-xs text-zinc-400 shrink-0 flex items-center gap-3">
-          {isWorking && <Loader2 size={12} className="animate-spin text-yellow-400" />}
+          {isWorking && <Loader2 size={12} className="animate-spin text-green-400" />}
           <span>{statusMsg}</span>
           {isWorking && (
-            <span className="text-yellow-400 font-mono tabular-nums">
+            <span className="text-green-400 font-mono tabular-nums">
               {Math.floor(elapsedSec / 60)}:{String(elapsedSec % 60).padStart(2, "0")}
             </span>
           )}
@@ -911,8 +981,8 @@ export default function Home() {
         <div className="w-[380px] shrink-0 flex flex-col border-r border-zinc-800 bg-zinc-900">
           <div className="px-4 py-3 border-b border-zinc-800">
             <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <FileText size={16} className="text-yellow-400" />
-              Document source
+              <FileText size={16} className="text-green-400" />
+              {t("label_source_doc")}
             </h2>
             <div className="flex gap-2">
               <button
@@ -920,7 +990,7 @@ export default function Home() {
                 className="flex items-center gap-2 bg-zinc-800 px-3 py-1.5 rounded text-xs font-medium hover:bg-zinc-700 transition"
               >
                 <Upload size={14} />
-                Uploader .md
+                {t("btn_upload_md")}
               </button>
               <input
                 ref={fileInputRef}
@@ -948,7 +1018,7 @@ export default function Home() {
           <textarea
             value={markdown}
             onChange={(e) => setMarkdown(e.target.value)}
-            placeholder="Collez votre contenu .md ici ou uploadez un fichier..."
+            placeholder={t("label_paste_md")}
             className="flex-1 bg-zinc-950 text-zinc-300 text-xs font-mono p-4 resize-none focus:outline-none placeholder:text-zinc-600"
           />
           {markdown && (
@@ -966,7 +1036,7 @@ export default function Home() {
             {/* ── PALETTE SECTION ── */}
             <div className="mb-4 rounded-xl border border-zinc-700 bg-zinc-900 p-3 space-y-2">
               <h3 className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-yellow-400" />
+                <span className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-400" />
                 Palettes de couleurs
               </h3>
 
@@ -976,7 +1046,7 @@ export default function Home() {
                   const isReadOnly = p.label === "A";
                   return (
                     <div key={p.label} className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold w-5 text-center ${activePaletteLabel === p.label ? 'text-yellow-400' : 'text-zinc-500'}`}>
+                      <span className={`text-[10px] font-bold w-5 text-center ${activePaletteLabel === p.label ? 'text-green-400' : 'text-zinc-500'}`}>
                         {p.label}
                       </span>
                       <div className="flex gap-0.5 flex-1">
@@ -1008,12 +1078,12 @@ export default function Home() {
                         {activePaletteLabel !== p.label ? (
                           <button
                             onClick={() => applyPaletteToAll(p.label)}
-                            className="text-[9px] text-zinc-500 hover:text-yellow-400 transition whitespace-nowrap"
+                            className="text-[9px] text-zinc-500 hover:text-green-400 transition whitespace-nowrap"
                           >
                             Définir pour tous
                           </button>
                         ) : (
-                          <span className="text-[9px] text-yellow-400/60 whitespace-nowrap">active</span>
+                          <span className="text-[9px] text-green-400/60 whitespace-nowrap">active</span>
                         )}
                         {isReadOnly ? (
                           <span className="text-[9px] text-zinc-600 italic">fixe</span>
@@ -1079,7 +1149,7 @@ export default function Home() {
             </div>
 
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
-              <LayoutGrid size={16} className="text-yellow-400" />
+              <LayoutGrid size={16} className="text-green-400" />
               Arbre des blocs ({blocks.filter((b) => b.enabled).length}/{blocks.length} actifs)
             </h2>
 
@@ -1110,7 +1180,7 @@ export default function Home() {
                       className="transition"
                     >
                       {block.enabled ? (
-                        <ToggleRight size={20} className="text-yellow-400" />
+                        <ToggleRight size={20} className="text-green-400" />
                       ) : (
                         <ToggleLeft size={20} className="text-zinc-600" />
                       )}
@@ -1143,11 +1213,11 @@ export default function Home() {
                     })()}
                     <button
                       onClick={() => toggleBlockMode(block.id)}
-                      className="flex items-center gap-1 text-zinc-400 hover:text-yellow-400 px-1.5 py-1 rounded text-xs transition"
+                      className="flex items-center gap-1 text-zinc-400 hover:text-green-400 px-1.5 py-1 rounded text-xs transition"
                       title="Cocher/décocher tous les champs du bloc"
                     >
                       {block.fields.every((f) => f.mode !== 'original') ? (
-                        <CheckSquare size={14} className="text-yellow-400" />
+                        <CheckSquare size={14} className="text-green-400" />
                       ) : (
                         <Square size={14} />
                       )}
@@ -1155,7 +1225,7 @@ export default function Home() {
                     <button
                       onClick={() => generateAllBlock(block)}
                       disabled={generating || !markdown.trim()}
-                      className="flex items-center gap-1 bg-yellow-400/15 text-yellow-400 px-2 py-1 rounded text-xs font-medium hover:bg-yellow-400/25 disabled:opacity-30 transition"
+                      className="flex items-center gap-1 bg-green-400/15 text-green-400 px-2 py-1 rounded text-xs font-medium hover:bg-green-400/25 disabled:opacity-30 transition"
                       title="Générer tous les champs de ce bloc"
                     >
                       <Sparkles size={12} />
@@ -1229,7 +1299,7 @@ export default function Home() {
                                   }
                                 }}
                                 disabled={generatingField === field.id || !markdown.trim()}
-                                className="flex items-center gap-1 bg-yellow-400/15 text-yellow-400 px-1.5 py-0.5 rounded text-[10px] font-medium hover:bg-yellow-400/25 disabled:opacity-30 transition"
+                                className="flex items-center gap-1 bg-green-400/15 text-green-400 px-1.5 py-0.5 rounded text-[10px] font-medium hover:bg-green-400/25 disabled:opacity-30 transition"
                                 title="Générer ce champ"
                               >
                                 {generatingField === field.id ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
@@ -1327,7 +1397,7 @@ export default function Home() {
                                           <button
                                             onClick={() => generateSingleField(block.id, field)}
                                             disabled={generatingField === field.id || !markdown.trim()}
-                                            className="flex items-center gap-1 bg-yellow-400/10 text-yellow-400 px-2 py-0.5 rounded text-[10px] font-medium hover:bg-yellow-400/20 disabled:opacity-30 transition"
+                                            className="flex items-center gap-1 bg-green-400/10 text-green-400 px-2 py-0.5 rounded text-[10px] font-medium hover:bg-green-400/20 disabled:opacity-30 transition"
                                           >
                                             {generatingField === field.id ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
                                             Générer prompt
@@ -1418,7 +1488,7 @@ export default function Home() {
                                       onChange={(e) =>
                                         updateFieldPrompt(block.id, field.id, e.target.value)
                                       }
-                                      className="w-full bg-zinc-900 text-xs text-zinc-300 p-2 rounded border border-zinc-800 resize-none focus:outline-none focus:border-yellow-400/50 min-h-[60px]"
+                                      className="w-full bg-zinc-900 text-xs text-zinc-300 p-2 rounded border border-zinc-800 resize-none focus:outline-none focus:border-green-400/50 min-h-[60px]"
                                       rows={3}
                                     />
                                   </div>
@@ -1464,7 +1534,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-[400px] shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><Save size={16} className="text-yellow-400" /> Sauvegarder la configuration</h3>
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Save size={16} className="text-green-400" /> Sauvegarder la configuration</h3>
               <button onClick={() => setShowSaveModal(false)}><X size={18} className="text-zinc-400 hover:text-zinc-200" /></button>
             </div>
             <label className="text-xs text-zinc-400 block mb-1">Nom *</label>
@@ -1472,21 +1542,59 @@ export default function Home() {
               autoFocus
               value={saveName}
               onChange={(e) => setSaveName(e.target.value)}
-              className="w-full bg-zinc-800 text-sm text-zinc-100 px-3 py-2 rounded-lg border border-zinc-700 focus:outline-none focus:border-yellow-400/50 mb-3"
+              className="w-full bg-zinc-800 text-sm text-zinc-100 px-3 py-2 rounded-lg border border-zinc-700 focus:outline-none focus:border-green-400/50 mb-3"
               placeholder="Nom de la configuration..."
             />
             <label className="text-xs text-zinc-400 block mb-1">Description (optionnel)</label>
             <input
               value={saveDesc}
               onChange={(e) => setSaveDesc(e.target.value)}
-              className="w-full bg-zinc-800 text-sm text-zinc-100 px-3 py-2 rounded-lg border border-zinc-700 focus:outline-none focus:border-yellow-400/50 mb-4"
+              className="w-full bg-zinc-800 text-sm text-zinc-100 px-3 py-2 rounded-lg border border-zinc-700 focus:outline-none focus:border-green-400/50 mb-4"
               placeholder="Notes sur cette config..."
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowSaveModal(false)} className="px-4 py-2 text-sm bg-zinc-800 rounded-lg hover:bg-zinc-700 transition">Annuler</button>
-              <button onClick={saveConfig} className="px-4 py-2 text-sm bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition">
-                {currentConfigId ? "Mettre à jour" : "Sauvegarder"}
+              <button onClick={() => saveConfigNew()} className="px-4 py-2 text-sm bg-green-400 text-black font-semibold rounded-lg hover:bg-green-300 transition">
+                Sauvegarder
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SAVE CHOICE MODAL (update vs duplicate) ────────────────── */}
+      {showSaveChoiceModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-[420px] shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2"><Save size={16} className="text-green-400" /> Sauvegarder</h3>
+              <button onClick={() => setShowSaveChoiceModal(false)}><X size={18} className="text-zinc-400 hover:text-zinc-200" /></button>
+            </div>
+            <p className="text-sm text-zinc-300 mb-5">Que souhaitez-vous faire avec <strong className="text-zinc-100">{saveName}</strong> ?</p>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={saveConfigUpdate}
+                className="w-full flex items-center gap-3 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl transition text-left"
+              >
+                <Save size={18} className="text-green-400 shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold">Mettre à jour l&apos;existant</div>
+                  <div className="text-[11px] text-zinc-500">Écrase la configuration actuelle</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { setShowSaveChoiceModal(false); setSaveName(saveName + " (copie)"); setShowSaveModal(true); }}
+                className="w-full flex items-center gap-3 bg-zinc-800 hover:bg-zinc-700 px-4 py-3 rounded-xl transition text-left"
+              >
+                <Copy size={18} className="text-blue-400 shrink-0" />
+                <div>
+                  <div className="text-sm font-semibold">Créer une copie</div>
+                  <div className="text-[11px] text-zinc-500">Nouvelle configuration indépendante</div>
+                </div>
+              </button>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setShowSaveChoiceModal(false)} className="px-4 py-2 text-sm bg-zinc-800 rounded-lg hover:bg-zinc-700 transition">Annuler</button>
             </div>
           </div>
         </div>
@@ -1497,7 +1605,7 @@ export default function Home() {
         <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50">
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-lg max-h-[70vh] flex flex-col shadow-2xl">
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
-              <h3 className="font-semibold text-sm flex items-center gap-2"><FolderOpen size={16} className="text-yellow-400" /> Configurations sauvegardées</h3>
+              <h3 className="font-semibold text-sm flex items-center gap-2"><FolderOpen size={16} className="text-green-400" /> Configurations sauvegardées</h3>
               <button onClick={() => setShowConfigsPanel(false)}><X size={18} className="text-zinc-400 hover:text-zinc-200" /></button>
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
@@ -1511,7 +1619,7 @@ export default function Home() {
                     {c.description && <div className="text-xs text-zinc-500 truncate">{c.description}</div>}
                     <div className="text-[10px] text-zinc-600 mt-0.5">{new Date(c.updatedAt).toLocaleString("fr-FR")}</div>
                   </div>
-                  <button onClick={() => loadConfig(c.id)} className="text-xs bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg hover:bg-yellow-400/20 transition font-medium">Ouvrir</button>
+                  <button onClick={() => loadConfig(c.id)} className="text-xs bg-green-400/10 text-green-400 px-3 py-1.5 rounded-lg hover:bg-green-400/20 transition font-medium">Ouvrir</button>
                   <button onClick={() => deleteConfig(c.id, c.name)} className="text-zinc-500 hover:text-red-400 transition p-1"><Trash2 size={14} /></button>
                 </div>
               ))}
@@ -1572,38 +1680,61 @@ export default function Home() {
                 <p className="text-zinc-500 text-sm text-center py-8">Aucune landing publiée</p>
               )}
               {landings.map((l) => (
-                <div key={l.id} className="flex items-center gap-3 bg-zinc-800 rounded-xl px-4 py-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{l.name}</div>
-                    <div className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">
-                      {l.slug ? `/${l.slug}` : `/l/${l.id}`}
+                <div key={l.id} className="bg-zinc-800 rounded-xl px-4 py-3 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{l.name}</div>
+                      <div className="text-[10px] text-zinc-600 font-mono mt-0.5 truncate">
+                        {l.slug ? `/${l.slug}` : `/l/${l.id}`}
+                      </div>
+                      <div className="text-[10px] text-zinc-600">{new Date(l.createdAt).toLocaleString("fr-FR")}</div>
                     </div>
-                    <div className="text-[10px] text-zinc-600">{new Date(l.createdAt).toLocaleString("fr-FR")}</div>
-                  </div>
-                  <button
-                    onClick={() => window.open(l.slug ? `/${l.slug}` : `/l/${l.id}`, "_blank")}
-                    className="text-xs bg-green-500/10 text-green-400 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition font-medium"
-                  >
-                    Ouvrir
-                  </button>
-                  <button
-                    onClick={() => copyLink(l.id, l.slug)}
-                    className="text-zinc-400 hover:text-zinc-200 transition p-1"
-                    title="Copier le lien"
-                  >
-                    {copiedId === l.id ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
-                  </button>
-                  {!l.slug && (
                     <button
-                      type="button"
-                      onClick={() => void syncLandingSlugFromName(l.id)}
-                      className="text-[10px] text-yellow-400/90 hover:text-yellow-300 px-2 py-1 rounded border border-yellow-500/30 whitespace-nowrap"
-                      title="Créer /nom à partir du titre affiché"
+                      onClick={() => window.open(l.slug ? `/${l.slug}` : `/l/${l.id}`, "_blank")}
+                      className="text-xs bg-green-500/10 text-green-400 px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition font-medium"
                     >
-                      URL = nom
+                      Ouvrir
                     </button>
-                  )}
-                  <button onClick={() => deleteLanding(l.id, l.name)} className="text-zinc-500 hover:text-red-400 transition p-1"><Trash2 size={14} /></button>
+                    <button
+                      onClick={() => copyLink(l.id, l.slug)}
+                      className="text-zinc-400 hover:text-zinc-200 transition p-1"
+                      title="Copier le lien"
+                    >
+                      {copiedId === l.id ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                    </button>
+                    {!l.slug && (
+                      <button
+                        type="button"
+                        onClick={() => void syncLandingSlugFromName(l.id)}
+                        className="text-[10px] text-green-400/90 hover:text-green-300 px-2 py-1 rounded border border-green-500/30 whitespace-nowrap"
+                        title="Créer /nom à partir du titre affiché"
+                      >
+                        URL = nom
+                      </button>
+                    )}
+                    <button onClick={() => deleteLanding(l.id, l.name)} className="text-zinc-500 hover:text-red-400 transition p-1"><Trash2 size={14} /></button>
+                  </div>
+                  <div className="flex items-center gap-3 pt-1 border-t border-zinc-700">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className="text-[10px] text-zinc-400 whitespace-nowrap">Visible sommaire</span>
+                      <button
+                        type="button"
+                        onClick={() => updateLandingMeta(l.id, { showInSummary: !l.showInSummary })}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${l.showInSummary ? "bg-green-500" : "bg-zinc-600"}`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${l.showInSummary ? "translate-x-4" : "translate-x-0.5"}`} />
+                      </button>
+                    </label>
+                    <select
+                      disabled={!l.showInSummary}
+                      value={l.category || ""}
+                      onChange={(e) => updateLandingMeta(l.id, { category: e.target.value })}
+                      className={`text-[10px] rounded px-2 py-1 border border-zinc-700 bg-zinc-900 text-zinc-300 ${!l.showInSummary ? "opacity-40 cursor-not-allowed" : ""}`}
+                    >
+                      <option value="">— Catégorie —</option>
+                      {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
                 </div>
               ))}
             </div>

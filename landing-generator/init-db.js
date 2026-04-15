@@ -53,6 +53,21 @@ async function initDb() {
     console.warn("Landing slug unique index:", e?.message || e);
   }
 
+  // Landing: showInSummary + category columns
+  for (const [col, sqlType, dflt] of [
+    ["showInSummary", "BOOLEAN", "DEFAULT 0"],
+    ["category", "TEXT", ""],
+  ]) {
+    try {
+      await client.execute(
+        `ALTER TABLE "Landing" ADD COLUMN "${col}" ${sqlType} ${dflt}`,
+      );
+      console.log(`Added Landing.${col}`);
+    } catch (e) {
+      /* already exists */
+    }
+  }
+
   // Older DBs: Configuration palette columns (see prisma/migrations)
   for (const [col, sqlType] of [
     ["palettes", "TEXT"],

@@ -137,6 +137,7 @@ export function generateLandingHTML(blocks: Block[], palette?: string[]): string
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet"/>
 <style>
 body{font-family:'Poppins',sans-serif;margin:0;padding:0;overflow-x:hidden}
+html{scroll-behavior:smooth}
 .font-heading{font-family:'Bodoni Moda',serif}
 .font-body{font-family:'Poppins',sans-serif}
 </style>
@@ -160,6 +161,7 @@ function genHeader(b: Block): string {
   const i2b = esc(gv(b, "header_item2_bold"));
   const cta = esc(gv(b, "header_cta"));
   const links = gv(b, "header_nav_links").split("|").map((l: string) => l.trim()).filter(Boolean);
+  const navAnchors = ["#bloc-solution", "#bloc-conditions", "#bloc-cee", "#bloc-contact"];
 
   return `
 <header class="w-full sticky top-0 z-50 shadow-md">
@@ -183,9 +185,10 @@ function genHeader(b: Block): string {
   <nav class="w-full flex items-center justify-between px-5 sm:px-10 h-[64px] border-b border-gray-100" style="background-color:#fff">
     <img src="${IMG}/images/logo-serres.svg" alt="Logo" class="object-contain max-h-[32px] w-auto"/>
     <div class="hidden md:flex items-center gap-8">
-      ${links.map((l: string) => `<a href="#" class="text-[14px] font-medium hover:opacity-70 transition-opacity" style="color:#333;font-family:'Poppins',sans-serif">${esc(l)}</a>`).join("")}
+      ${links.map((l: string, i: number) => `<a href="${navAnchors[i] || "#"}" class="text-[14px] font-medium hover:opacity-70 transition-opacity" style="color:#333;font-family:'Poppins',sans-serif">${esc(l)}</a>`).join("")}
+      <a href="/a-propos" class="text-[14px] font-medium hover:opacity-70 transition-opacity" style="color:#333;font-family:'Poppins',sans-serif">À propos de nous</a>
     </div>
-    <a href="#contact" class="hidden sm:inline-block px-7 py-2.5 rounded-lg text-[14px] font-bold transition-transform hover:scale-105" style="background-color:#1B7A2B;color:#fff;font-family:'Poppins',sans-serif">${cta}</a>
+    <a href="#bloc-conditions" class="hidden sm:inline-block px-7 py-2.5 rounded-lg text-[14px] font-bold transition-transform hover:scale-105" style="background-color:#1B7A2B;color:#fff;font-family:'Poppins',sans-serif">${cta}</a>
   </nav>
 </header>`;
 }
@@ -467,7 +470,7 @@ function genCEE(b: Block): string {
           <div class="flex flex-col gap-2 mb-5 w-full">
             ${regl.map((r: string) => `<p class="text-[11px] sm:text-[12px] leading-[1.6] font-light" style="color:#333;font-family:'Poppins',sans-serif">${esc(r)}</p>`).join("")}
           </div>
-          <a href="#" class="rounded-lg px-6 py-2.5 text-[12px] sm:text-[13px] font-bold border-2 transition-colors hover:bg-black hover:text-white mx-auto" style="border-color:#000;background-color:transparent;color:#000;font-family:'Poppins',sans-serif">Vérifier l'éligibilité de ma serre</a>
+          <a href="#bloc-conditions" class="rounded-lg px-6 py-2.5 text-[12px] sm:text-[13px] font-bold border-2 transition-colors hover:bg-black hover:text-white mx-auto" style="border-color:#000;background-color:transparent;color:#000;font-family:'Poppins',sans-serif">Vérifier l'éligibilité de ma serre</a>
         </div>
       </div>
     </div>
@@ -513,7 +516,7 @@ function genConditions(b: Block): string {
         </div>`).join("")}
       </div>
     </div>
-    <a href="#" class="mt-6 sm:mt-8 rounded-lg px-6 py-2.5 text-[12px] sm:text-[13px] font-bold transition-transform hover:scale-105" style="background-color:#FFE500;color:#000;font-family:'Poppins',sans-serif">${cta}</a>
+    <a href="#bloc-contact" class="mt-6 sm:mt-8 rounded-lg px-6 py-2.5 text-[12px] sm:text-[13px] font-bold transition-transform hover:scale-105" style="background-color:#FFE500;color:#000;font-family:'Poppins',sans-serif">${cta}</a>
   </div>
 </section>`;
 }
@@ -558,7 +561,7 @@ function genMethode(b: Block): string {
       <div class="relative z-10 md:w-[72%] text-left">
         <h3 class="text-[0.95rem] sm:text-[1.05rem] lg:text-[1.15rem] font-bold leading-[1.2] mb-2 md:whitespace-nowrap" style="color:#FFFFFF;font-family:'Poppins',sans-serif">${bh}</h3>
         <p class="text-[12px] sm:text-[13px] leading-[1.45] font-light mb-4" style="color:#FFFFFF;font-family:'Poppins',sans-serif">${bt}</p>
-        <a href="#" class="inline-flex rounded-md px-4 sm:px-5 py-2 text-[11px] sm:text-[12px] font-bold" style="background-color:#FFE500;color:#000;font-family:'Poppins',sans-serif">Démarrer mon projet — étude gratuite</a>
+        <a href="#bloc-contact" class="inline-flex rounded-md px-4 sm:px-5 py-2 text-[11px] sm:text-[12px] font-bold" style="background-color:#FFE500;color:#000;font-family:'Poppins',sans-serif">Démarrer mon projet — étude gratuite</a>
       </div>
       <div class="relative z-10 md:w-[25%] w-full flex justify-start md:justify-end">
         <span class="text-[4.4rem] sm:text-[5.1rem] lg:text-[5.8rem] leading-none" style="color:#fff;font-family:'Bodoni Moda',serif">-38%</span>

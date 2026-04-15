@@ -21,10 +21,12 @@ model Configuration {
 }
 
 model Landing {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String?  @unique // URL-friendly name for public access: /mon-slug
-  configId    String?
-  html        String   // Full generated HTML
-  createdAt   DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  slug          String?  @unique // URL-friendly name for public access: /mon-slug
+  configId      String?
+  html          String   // Full generated HTML
+  showInSummary Boolean  @default(false)
+  category      String?  // e.g. "sante", "collectivite", "residentiel"...
+  createdAt     DateTime @default(now())
 }

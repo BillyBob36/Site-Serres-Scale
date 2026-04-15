@@ -7,7 +7,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const landing = await prisma.landing.findUnique({ where: { id } });
   if (!landing) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  // Return HTML directly for browser access
   const accept = _req.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
     return new NextResponse(landing.html, {
@@ -24,6 +23,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!landing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
+
+  if (typeof body.showInSummary === "boolean" || typeof body.category === "string") {
+    const data: Record<string, unknown> = {};
+    if (typeof body.showInSummary === "boolean") data.showInSummary = body.showInSummary;
+    if (typeof body.category === "string") data.category = body.category || null;
+    const updated = await prisma.landing.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, slug: true, configId: true, showInSummary: true, category: true, createdAt: true },
+    });
+    return NextResponse.json(updated);
+  }
+
   let clean: string | null = null;
   if (body.syncSlugFromName === true) {
     clean = slugifyLandingName(landing.name) || null;
@@ -38,17 +50,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     );
   }
   if (isReservedLandingSlug(clean)) {
-    return NextResponse.json({ error: "Ce segment d’URL est réservé" }, { status: 400 });
+    return NextResponse.json({ error: "Ce segment d'URL est réservé" }, { status: 400 });
   }
   const taken = await prisma.landing.findFirst({ where: { slug: clean, id: { not: id } } });
   if (taken) {
-    return NextResponse.json({ error: `L’URL « /${clean} » est déjà utilisée` }, { status: 409 });
+    return NextResponse.json({ error: `L'URL « /${clean} » est déjà utilisée` }, { status: 409 });
   }
 
   const updated = await prisma.landing.update({
     where: { id },
     data: { slug: clean },
-    select: { id: true, name: true, slug: true, configId: true, createdAt: true },
+    select: { id: true, name: true, slug: true, configId: true, showInSummary: true, category: true, createdAt: true },
   });
   return NextResponse.json(updated);
 }

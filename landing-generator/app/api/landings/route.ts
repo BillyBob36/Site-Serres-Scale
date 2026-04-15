@@ -7,7 +7,7 @@ export async function GET() {
     const prisma = await getDb();
     const landings = await prisma.landing.findMany({
       orderBy: { createdAt: "desc" },
-      select: { id: true, name: true, slug: true, configId: true, createdAt: true },
+      select: { id: true, name: true, slug: true, configId: true, showInSummary: true, category: true, createdAt: true },
     });
     return NextResponse.json(landings);
   } catch (e) {

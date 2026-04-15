@@ -12,6 +12,12 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/api/auth/logout")) {
     return NextResponse.next();
   }
+  if (pathname.startsWith("/api/landings/public")) {
+    return NextResponse.next();
+  }
+  if (pathname === "/a-propos") {
+    return NextResponse.next();
+  }
 
   if (pathname.startsWith("/app-admin/login")) {
     if (await verifySessionToken(token)) {
