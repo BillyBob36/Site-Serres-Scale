@@ -1,12 +1,26 @@
 import Link from "next/link";
-import fs from "fs";
-import path from "path";
-import { injectSummarySectorLinks } from "./lib/summarySectorLinks";
+import Image from "next/image";
 
-/** Liens secteur → landings : toujours à jour selon la BDD */
 export const dynamic = "force-dynamic";
 
-type Landing = { id: string; name: string; slug?: string | null; category?: string | null };
+type Landing = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  category?: string | null;
+};
+
+const SECTORS = [
+  { name: "Santé", slug: "sante", color: "#c6f9da" },
+  { name: "Collectivité", slug: "collectivite", color: "#ff99cc" },
+  { name: "Résidentiel", slug: "residentiel", color: "#99ccff" },
+  { name: "Commerce", slug: "commerce", color: "#ffd1a3" },
+  { name: "Bureaux", slug: "bureaux", color: "#cbb698" },
+  { name: "Hôtellerie", slug: "hotellerie", color: "#f6a570" },
+  { name: "Distribution", slug: "distribution", color: "#ccdc7c" },
+  { name: "Industrie", slug: "industrie", color: "#cc99ff" },
+  { name: "Agriculture", slug: "agriculture", color: "#fee327" },
+] as const;
 
 async function getPublicLandings(): Promise<Landing[]> {
   try {
@@ -22,89 +36,74 @@ async function getPublicLandings(): Promise<Landing[]> {
   }
 }
 
-function loadSectorFragment(): string {
-  const p = path.join(process.cwd(), "public", "summary-sector", "fragment.html");
-  if (!fs.existsSync(p)) return "";
-  return fs.readFileSync(p, "utf-8");
-}
-
 export default async function SummaryPage() {
   const landings = await getPublicLandings();
-  const landingsByCategory: Record<string, Landing[]> = {};
+  const byCategory: Record<string, Landing[]> = {};
   for (const l of landings) {
     const cat = l.category || "Autre";
-    if (!landingsByCategory[cat]) landingsByCategory[cat] = [];
-    landingsByCategory[cat].push(l);
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(l);
   }
-
-  const rawFragment = loadSectorFragment();
-  const sectorHtml = rawFragment
-    ? injectSummarySectorLinks(rawFragment, landingsByCategory)
-    : "";
 
   return (
     <div
-      className="summary-root"
-      style={{ margin: 0, minHeight: "100vh", background: "#fff", color: "#111" }}
+      style={{
+        margin: 0,
+        minHeight: "100vh",
+        background: "#ffffff",
+        color: "#000000",
+        fontFamily: "'Poppins', sans-serif",
+      }}
     >
-      <link rel="stylesheet" href="/summary-sector/sector.css" />
+      {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+      <link
+        href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,700;1,400;1,500&family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
 
+      {/* ── Header ── */}
       <header
         style={{
-          background: "#111",
-          borderBottom: "1px solid #222",
-          padding: "16px 40px",
+          background: "#ffffff",
+          borderBottom: "1px solid #e5e5e5",
+          padding: "0 40px",
+          height: 68,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              background: "#2D9F46",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#fff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M7 20h10M10 20c5.5-2.5.8-6.4 3-10 .1-1.5 1-2.8 2-3.8" />
-            </svg>
-          </div>
-          <span style={{ color: "#fff", fontSize: "18px", fontWeight: 700, letterSpacing: "-0.02em" }}>
-            Eco Environnement
-          </span>
-        </div>
-        <nav style={{ display: "flex", gap: "24px", alignItems: "center" }}>
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
+          <Image src="/images/about/eco-logo.svg" alt="Eco Environnement" width={140} height={44} />
+        </Link>
+        <nav style={{ display: "flex", gap: 20, alignItems: "center" }}>
           <Link
             href="/a-propos"
-            style={{ color: "#aaa", fontSize: "14px", fontWeight: 500, textDecoration: "none" }}
+            style={{
+              color: "#333",
+              fontSize: 14,
+              fontWeight: 500,
+              textDecoration: "none",
+              fontFamily: "'Poppins', sans-serif",
+            }}
           >
             À propos de nous
           </Link>
           <Link
             href="/app-admin"
             style={{
-              background: "#2D9F46",
+              background: "#00A340",
               color: "#fff",
               padding: "8px 20px",
-              borderRadius: "8px",
-              fontSize: "13px",
+              borderRadius: 6,
+              fontSize: 13,
               fontWeight: 600,
               textDecoration: "none",
+              fontFamily: "'Poppins', sans-serif",
             }}
           >
             Administration
@@ -112,32 +111,173 @@ export default async function SummaryPage() {
         </nav>
       </header>
 
-      {sectorHtml ? (
-        <div
-          className="summary-sector-host"
-          style={{ maxWidth: "100%", overflowX: "hidden" }}
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: sectorHtml,
+      {/* ── Titre « Votre secteur d'activité » ── */}
+      <section style={{ textAlign: "center", padding: "60px 20px 12px" }}>
+        <h2
+          style={{
+            fontSize: "clamp(32px, 5vw, 58px)",
+            fontWeight: 600,
+            color: "#000",
+            margin: "0 0 12px",
+            lineHeight: 1.15,
+            fontFamily: "'Poppins', sans-serif",
           }}
-        />
-      ) : (
-        <div style={{ padding: "48px 24px", textAlign: "center", fontFamily: "Poppins, sans-serif" }}>
-          <p style={{ color: "#666" }}>
-            Bloc secteur indisponible. Exécutez{" "}
-            <code style={{ background: "#f0f0f0", padding: "2px 6px", borderRadius: 4 }}>
-              node scripts/extract-summary-sector.mjs
-            </code>{" "}
-            dans <code>landing-generator</code> (fichier <code>public/scraped-homepage.html</code> requis).
-          </p>
-        </div>
-      )}
+        >
+          Votre secteur{" "}
+          <span
+            style={{
+              fontFamily: "'Bodoni Moda', serif",
+              fontStyle: "italic",
+              fontWeight: 500,
+            }}
+          >
+            d&apos;activité
+          </span>
+        </h2>
+        <p
+          style={{
+            margin: "0 auto",
+            maxWidth: 600,
+            fontSize: "clamp(14px, 1.6vw, 18px)",
+            fontWeight: 300,
+            color: "#555",
+            lineHeight: 1.6,
+            fontFamily: "'Poppins', sans-serif",
+          }}
+        >
+          Choisissez votre secteur et on optimise énergétiquement votre bâtiment
+        </p>
+      </section>
 
-      <footer style={{ borderTop: "1px solid #e5e5e5", padding: "32px 20px", textAlign: "center", background: "#fafafa" }}>
-        <p style={{ color: "#555", fontSize: "12px", margin: 0, fontFamily: "Poppins, sans-serif" }}>
+      {/* ── Grille des secteurs ── */}
+      <section
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          padding: "40px 24px 80px",
+        }}
+      >
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 20,
+          }}
+        >
+          {SECTORS.map((sector) => {
+            const catLandings = byCategory[sector.name] || [];
+            const firstLanding = catLandings[0];
+            const href = firstLanding
+              ? firstLanding.slug
+                ? `/${firstLanding.slug}`
+                : `/l/${firstLanding.id}`
+              : undefined;
+
+            const cardContent = (
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 16,
+                  border: "1px solid #e8e8e8",
+                  overflow: "hidden",
+                  cursor: href ? "pointer" : "default",
+                  transition: "transform 0.25s, box-shadow 0.25s",
+                }}
+                className="sector-card"
+              >
+                {/* Zone icône avec fond coloré pastel */}
+                <div
+                  style={{
+                    background: sector.color,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    height: 160,
+                    padding: 24,
+                  }}
+                >
+                  <Image
+                    src={`/images/sectors/${sector.slug}.svg`}
+                    alt={sector.name}
+                    width={80}
+                    height={80}
+                    style={{ width: 80, height: 80, objectFit: "contain" }}
+                  />
+                </div>
+                {/* Nom du secteur */}
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    background: "#fff",
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: 18,
+                      fontWeight: 600,
+                      color: "#000",
+                      fontFamily: "'Poppins', sans-serif",
+                    }}
+                  >
+                    {sector.name}
+                  </h3>
+                  {catLandings.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {catLandings.map((l) => (
+                        <div key={l.id} style={{ fontSize: 13, color: "#00A340", fontWeight: 500, marginTop: 4 }}>
+                          {l.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+
+            if (href) {
+              return (
+                <Link
+                  key={sector.slug}
+                  href={href}
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  {cardContent}
+                </Link>
+              );
+            }
+            return <div key={sector.slug}>{cardContent}</div>;
+          })}
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer
+        style={{
+          borderTop: "1px solid #e5e5e5",
+          padding: "32px 20px",
+          textAlign: "center",
+          background: "#fafafa",
+        }}
+      >
+        <p
+          style={{
+            color: "#999",
+            fontSize: 12,
+            margin: 0,
+            fontFamily: "'Poppins', sans-serif",
+          }}
+        >
           © Eco Environnement — Spécialiste de l&apos;optimisation énergétique
         </p>
       </footer>
+
+      {/* Hover effect via inline style tag */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `.sector-card:hover{transform:translateY(-4px);box-shadow:0 8px 24px rgba(0,0,0,0.1)}`,
+        }}
+      />
     </div>
   );
 }
