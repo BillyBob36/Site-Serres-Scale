@@ -137,7 +137,8 @@ export function generateLandingHTML(blocks: Block[], palette?: string[]): string
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet"/>
 <style>
 body{font-family:'Poppins',sans-serif;margin:0;padding:0;overflow-x:hidden}
-html{scroll-behavior:smooth}
+/* Header sticky = 2 × 64px (barre jaune + nav) : évite que la 2e ligne masque le haut des sections */
+html{scroll-behavior:smooth;scroll-padding-top:136px}
 .font-heading{font-family:'Bodoni Moda',serif}
 .font-body{font-family:'Poppins',sans-serif}
 </style>
