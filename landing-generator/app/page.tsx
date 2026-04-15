@@ -56,6 +56,7 @@ export default async function SummaryPage() {
     >
       {/* CSS du site d’origine (Elementor) — images en data URL dans le fragment */}
       <link rel="stylesheet" href="/summary-sector/sector.css" />
+      <link rel="stylesheet" href="/summary-sector/layout-fix.css" />
 
       <header
         style={{

@@ -52,6 +52,10 @@ fragment = fragment
   .replace(/R├®sidentiel/g, "Résidentiel")
   .replace(/Industrie\s*&amp;\s*<br\s*\/?>\s*Data\s*center/gi, "Industrie &amp;<br>Data center");
 
+// Les règles CSS aspirées sont préfixées `.elementor-56` + variables sur `.elementor-kit-6` :
+// sans ces classes ancêtres, la grille et les tailles d’images ne s’appliquent pas (SVG en pleine page).
+fragment = `<div class="elementor elementor-56 elementor-kit-6" data-elementor-summary-emulated="true" style="width:100%;max-width:100%;box-sizing:border-box">${fragment}</div>`;
+
 fs.mkdirSync(OUTDIR, { recursive: true });
 fs.writeFileSync(path.join(OUTDIR, "fragment.html"), fragment, "utf-8");
 
