@@ -54,6 +54,11 @@ export default async function SummaryPage() {
         color: "#111111",
       }}
     >
+      {/* Polices alignées sur ecoenvironnement.net (les @font-face du scrape sont retirés à l’extraction) */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap"
+      />
       {/* CSS du site d’origine (Elementor) — images en data URL dans le fragment */}
       <link rel="stylesheet" href="/summary-sector/sector.css" />
       <link rel="stylesheet" href="/summary-sector/layout-fix.css" />

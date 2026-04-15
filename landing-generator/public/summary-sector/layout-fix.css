@@ -1,16 +1,73 @@
 /**
  * Correctifs quand le bloc Elementor est injecté hors du body WordPress d’origine.
  * Chargé après sector.css.
+ *
+ * La grille Elementor repose sur display:var(--display) + variables ; en dehors du
+ * contexte WordPress (ou avec d’autres feuilles), la grille peut ne pas s’appliquer :
+ * on force une grille 3×3 identique à l’intention du modèle.
  */
 [data-elementor-summary-emulated="true"] {
   --direction-multiplier: 1;
 }
 
-/* Filet de sécurité : les <img> data-URL ont souvent width=800 sans grille parente active */
-[data-elementor-summary-emulated="true"] .elementor-widget-image img {
-  max-width: min(100%, 120px) !important;
+[data-elementor-summary-emulated="true"] #eco-summary-sector-root {
+  text-align: center;
+}
+
+[data-elementor-summary-emulated="true"] .elementor-element-4871bbb {
+  text-align: center !important;
+}
+
+[data-elementor-summary-emulated="true"] .elementor-element-5659e95.e-grid > .e-con-inner {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(0, auto);
+  gap: clamp(16px, 3vw, 30px) !important;
+  width: 100%;
+  max-width: min(1140px, 100%);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 clamp(16px, 4vw, 32px) 48px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  [data-elementor-summary-emulated="true"] .elementor-element-5659e95.e-grid > .e-con-inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 560px) {
+  [data-elementor-summary-emulated="true"] .elementor-element-5659e95.e-grid > .e-con-inner {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Cartes : colonne, fond photo lisible */
+[data-elementor-summary-emulated="true"] .elementor-element-5659e95 > .e-con-inner > a[class*="elementor-element-"] {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  align-items: stretch !important;
+  min-height: clamp(220px, 32vw, 320px) !important;
+  position: relative;
+  box-sizing: border-box;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+[data-elementor-summary-emulated="true"] .elementor-element-5659e95 .elementor-widget-image {
+  align-self: flex-end;
+  flex: 0 0 auto;
+  margin: 10px 12px 0;
+  max-width: calc(100% - 24px);
+}
+
+/* Icônes SVG (placeholder) : pas de pleine largeur si la grille parente manque */
+[data-elementor-summary-emulated="true"] .elementor-element-5659e95 .elementor-widget-image img {
+  max-width: min(100%, 96px) !important;
   width: auto !important;
   height: auto !important;
-  display: inline-block !important;
-  vertical-align: middle !important;
+  display: block !important;
 }

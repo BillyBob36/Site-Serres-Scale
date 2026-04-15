@@ -1,7 +1,9 @@
 /**
  * Extrait du scraped-homepage.html :
  * - le titre + grille « Votre secteur d'activité » (Elementor data-id a90ef4e + 5659e95)
- * - les <style> du document sauf le bloc #26 (~2,3 Mo de @font-face / fonts)
+ * - tous les <style> du document, en retirant les @font-face (polices dupliquées / lourdes) :
+ *   le bloc #26 (~2,3 Mo) est le bundle Elementor principal (grille e-grid, backgrounds des cartes) ;
+ *   il ne doit pas être exclu — l’ancien « skip #26 » cassait la grille (SVG plein écran).
  *
  * Sortie : public/summary-sector/fragment.html + sector.css
  * Relancer après re-scrape : node scripts/extract-summary-sector.mjs
@@ -15,6 +17,36 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const SRC = path.join(ROOT, "public/scraped-homepage.html");
 const OUTDIR = path.join(ROOT, "public/summary-sector");
+
+/** Supprime les @font-face embarqués (single-file) : la page sommaire charge Poppins/Bodoni via Google Fonts. */
+function stripFontFaces(css) {
+  let out = "";
+  let i = 0;
+  const lower = css.toLowerCase();
+  while (i < css.length) {
+    const idx = lower.indexOf("@font-face", i);
+    if (idx === -1) {
+      out += css.slice(i);
+      break;
+    }
+    out += css.slice(i, idx);
+    const open = css.indexOf("{", idx);
+    if (open === -1) {
+      out += css.slice(idx);
+      break;
+    }
+    let depth = 1;
+    let j = open + 1;
+    while (j < css.length && depth > 0) {
+      const c = css[j];
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      j++;
+    }
+    i = j;
+  }
+  return out;
+}
 
 const raw = fs.readFileSync(SRC, "utf-8");
 const $ = cheerio.load(raw);
@@ -62,11 +94,8 @@ fs.writeFileSync(path.join(OUTDIR, "fragment.html"), fragment, "utf-8");
 const styleRe = /<style[^>]*>([\s\S]*?)<\/style>/gi;
 const parts = [];
 let m;
-let idx = 0;
 while ((m = styleRe.exec(raw)) !== null) {
-  idx++;
-  if (idx === 26) continue;
-  parts.push(m[1]);
+  parts.push(stripFontFaces(m[1]));
 }
 const css = parts.join("\n\n/* --- */\n\n");
 fs.writeFileSync(path.join(OUTDIR, "sector.css"), css, "utf-8");
