@@ -34,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "shx": "^0.4.0",
+    "single-file-cli": "^2.0.83",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
