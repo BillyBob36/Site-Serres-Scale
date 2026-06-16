@@ -14,12 +14,17 @@ const IMG = IMG_BASE;
 
 function gv(block: Block, fieldId: string): string {
   const field = block.fields.find((f) => f.id === fieldId);
-  if (!field) return originalContent[fieldId] || "";
-  // mode 'generated' or 'manual' uses field.value, 'original' uses originalContent
+  if (!field) return String(originalContent[fieldId] ?? "");
+  // mode 'generated' or 'manual' uses field.value
   if ((field.mode === 'generated' || field.mode === 'manual') && field.value) {
-    return field.value;
+    return typeof field.value === 'string' ? field.value : String(field.value ?? "");
   }
-  return originalContent[fieldId] || field.value || "";
+  // mode 'original': for image fields, prefer originalImageUrl
+  if (field.mode === 'original' && field.type === 'image' && field.originalImageUrl) {
+    return field.originalImageUrl;
+  }
+  const raw = originalContent[fieldId] ?? field.value ?? "";
+  return typeof raw === 'string' ? raw : String(raw);
 }
 
 function esc(s: unknown): string {
@@ -107,23 +112,74 @@ function applyPalette(html: string, palette?: string[]): string {
   return result;
 }
 
-export function generateLandingHTML(blocks: Block[], palette?: string[]): string {
+// ── SVG slot system ──────────────────────────────────────────
+// 4 SVG slots used across the landing page
+export const SVG_SLOTS = [
+  { key: "logo-serres", label: "Logo principal (header)", default: "logo-serres.svg", blocks: ["header"] },
+  { key: "agriculture", label: "Icône secteur (badge, cartes, filigrane)", default: "agriculture.svg", blocks: ["bloc1", "bloc9", "bloc10", "bloc12", "bloc15"] },
+  { key: "eco-fond", label: "Illustration de fond (défi)", default: "eco-fond.svg", blocks: ["bloc4"] },
+  { key: "logo-footer", label: "Logo footer (blanc)", default: "logo-eco-Horizontblanc.svg", blocks: ["bloc16"] },
+] as const;
+
+export type SvgSlotKey = typeof SVG_SLOTS[number]["key"];
+
+// Map of blockId:slotKey → custom SVG URL (for per-block overrides)
+export type SvgBlockOverrides = Record<string, string>;
+
+// Resolve the app origin so standalone HTML / blob previews can load SVGs.
+const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL
+  || (typeof window !== "undefined" ? window.location.origin : "https://eco-environnement.com");
+
+// Map a library-relative path (/svg-library/X.svg) to an absolute URL
+// so standalone HTML / blob previews can load them.
+function absoluteSvgUrl(url: string): string {
+  if (url.startsWith("/svg-library/")) {
+    return `${APP_ORIGIN}${url}`;
+  }
+  return url; // data: URLs or already-absolute URLs pass through
+}
+
+function resolveSvgUrl(
+  slotKey: string,
+  blockId: string,
+  globalSvgs?: Record<string, string>,
+  blockSvgs?: SvgBlockOverrides,
+): string {
+  // Per-block override takes priority
+  const blockKey = `${blockId}:${slotKey}`;
+  if (blockSvgs?.[blockKey]) return absoluteSvgUrl(blockSvgs[blockKey]);
+  // Then global override
+  if (globalSvgs?.[slotKey]) return absoluteSvgUrl(globalSvgs[slotKey]);
+  // Default from GitHub Pages
+  const slot = SVG_SLOTS.find(s => s.key === slotKey);
+  return `${IMG}/images/${slot?.default ?? slotKey + ".svg"}`;
+}
+
+export function generateLandingHTML(
+  blocks: Block[],
+  palette?: string[],
+  globalSvgs?: Record<string, string>,
+  blockSvgs?: SvgBlockOverrides,
+): string {
+  // Make svg resolver available to block generators via closure
+  const svg = (slotKey: string, blockId: string) => resolveSvgUrl(slotKey, blockId, globalSvgs, blockSvgs);
+
   const enabled = blocks.filter((b) => b.enabled);
   let html = "";
   for (const b of enabled) {
     switch (b.id) {
-      case "header": html += genHeader(b); break;
-      case "bloc1": html += genHero(b); break;
-      case "bloc4": html += genDefi(b); break;
+      case "header": html += genHeader(b, svg); break;
+      case "bloc1": html += genHero(b, svg); break;
+      case "bloc4": html += genDefi(b, svg); break;
       case "bloc5": html += genSolution(b); break;
       case "bloc3": html += genConfiance(b); break;
       case "bloc2": html += genPartenaire(b); break;
-      case "bloc9": html += genCEE(b); break;
-      case "bloc10": html += genConditions(b); break;
-      case "bloc12": html += genMethode(b); break;
+      case "bloc9": html += genCEE(b, svg); break;
+      case "bloc10": html += genConditions(b, svg); break;
+      case "bloc12": html += genMethode(b, svg); break;
       case "bloc13": html += genFAQ(b); break;
-      case "bloc15": html += genContact(b); break;
-      case "bloc16": html += genFooter(b); break;
+      case "bloc15": html += genContact(b, svg); break;
+      case "bloc16": html += genFooter(b, svg); break;
     }
   }
 
@@ -154,7 +210,9 @@ ${html}
 /* ═══════════════════════════════════════════════════════════
    HEADER — fidèle à Header.tsx
    ═══════════════════════════════════════════════════════════ */
-function genHeader(b: Block): string {
+type SvgResolver = (slotKey: string, blockId: string) => string;
+
+function genHeader(b: Block, svg?: SvgResolver): string {
   const badge = esc(gv(b, "header_badge"));
   const i1t = esc(gv(b, "header_item1_text"));
   const i1b = esc(gv(b, "header_item1_bold"));
@@ -184,7 +242,7 @@ function genHeader(b: Block): string {
     </div>
   </div>
   <nav class="w-full flex items-center justify-between px-5 sm:px-10 h-[64px] border-b border-gray-100" style="background-color:#fff">
-    <img src="${IMG}/images/logo-serres.svg" alt="Logo" class="object-contain max-h-[32px] w-auto"/>
+    <img src="${svg ? svg("logo-serres", "header") : `${IMG}/images/logo-serres.svg`}" alt="Logo" class="object-contain max-h-[32px] w-auto"/>
     <div class="hidden md:flex items-center gap-8">
       ${links.map((l: string, i: number) => `<a href="${navAnchors[i] || "#"}" class="text-[14px] font-medium hover:opacity-70 transition-opacity" style="color:#333;font-family:'Poppins',sans-serif">${esc(l)}</a>`).join("")}
       <a href="/a-propos" class="text-[14px] font-medium hover:opacity-70 transition-opacity" style="color:#333;font-family:'Poppins',sans-serif">À propos de nous</a>
@@ -197,7 +255,7 @@ function genHeader(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    HERO — fidèle à Bloc1Hero.tsx
    ═══════════════════════════════════════════════════════════ */
-function genHero(b: Block): string {
+function genHero(b: Block, svg?: SvgResolver): string {
   const badge = esc(gv(b, "hero_badge"));
   const l1 = esc(gv(b, "hero_title_line1"));
   const l2 = esc(gv(b, "hero_title_line2"));
@@ -215,7 +273,7 @@ function genHero(b: Block): string {
   <div class="flex flex-col lg:flex-row" style="min-height:calc(100vh - 128px)">
     <div class="lg:w-[52%] px-5 sm:px-8 lg:px-12 py-6 sm:py-8 lg:py-10 flex flex-col justify-center" style="background-color:#FFE500">
       <span class="inline-flex items-center gap-1.5 text-[11px] sm:text-[12px] font-semibold px-3.5 py-1.5 rounded-md w-fit mb-3 sm:mb-4" style="background-color:#1A1A1A;color:#fff;font-family:'Poppins',sans-serif">
-        <img src="${IMG}/images/agriculture.svg" alt="" class="w-[14px] h-[14px] object-contain"/>
+        <img src="${svg ? svg("agriculture", "bloc1") : `${IMG}/images/agriculture.svg`}" alt="" class="w-[14px] h-[14px] object-contain"/>
         ${badge}
       </span>
       <h1 class="text-[1.5rem] sm:text-[2rem] md:text-[2.4rem] lg:text-[2.9rem] font-bold leading-[1.15] sm:leading-[1.2] mb-3 sm:mb-4" style="color:#000;font-family:'Poppins',sans-serif">
@@ -224,7 +282,7 @@ function genHero(b: Block): string {
         ${l3}
       </h1>
       <p class="text-[12px] sm:text-[13px] lg:text-[14.5px] leading-[1.6] mb-4 sm:mb-5 max-w-[550px] font-medium" style="color:#333;font-family:'Poppins',sans-serif">${sub}</p>
-      <div class="rounded-xl px-4 sm:px-6 py-3 sm:py-4 mb-4 sm:mb-5 w-full max-w-[550px] flex gap-3 sm:gap-4 items-stretch" style="background-color:#FFF9E6">
+      <div class="rounded-xl px-4 sm:px-6 py-3 sm:py-4 mb-4 sm:mb-5 w-full max-w-[550px] flex gap-3 sm:gap-4 items-stretch" style="background:rgba(255,255,255,0.8);border-radius:12px">
         <span class="text-[2.2rem] sm:text-[3.6rem] font-bold flex items-center shrink-0 leading-none" style="color:#2D9F46;font-family:'Bodoni Moda',serif">${amt}</span>
         <div class="flex flex-col justify-center gap-1">
           <strong class="text-[13px] sm:text-[14px] font-semibold leading-tight" style="font-family:'Poppins',sans-serif">${ptx}</strong>
@@ -238,8 +296,8 @@ function genHero(b: Block): string {
       <p class="text-[11px] mt-3 font-light" style="color:#555;font-family:'Poppins',sans-serif">${sup}</p>
     </div>
     <div class="w-full lg:w-[48%] relative flex flex-col items-center justify-between bg-white p-0 overflow-hidden">
-      <div class="flex-1 w-full flex items-center justify-center relative">
-        <img src="${gv(b, "hero_image") || `${IMG}/images/pdf-extracts/page1_img1_1306x816.jpeg`}" alt="Déshumidificateur" class="w-full h-auto object-cover"/>
+      <div class="flex-1 w-full relative" style="min-height:300px">
+        <img src="${gv(b, "hero_image") || `${IMG}/images/pdf-extracts/page1_img1_1306x816.jpeg`}" alt="Déshumidificateur" class="absolute inset-0 w-full h-full object-cover"/>
         <div class="absolute bottom-0 left-0 right-0 h-16" style="background:linear-gradient(to top,rgba(255,255,255,0.9),transparent)"></div>
       </div>
       ${stats ? `<div class="flex flex-wrap gap-2 sm:flex-nowrap sm:gap-3 w-full justify-center lg:justify-end relative z-10 px-3 sm:px-4 pb-3 sm:pb-4">
@@ -256,7 +314,7 @@ function genHero(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    DÉFI — fidèle à Bloc4Defi.tsx
    ═══════════════════════════════════════════════════════════ */
-function genDefi(b: Block): string {
+function genDefi(b: Block, svg?: SvgResolver): string {
   const bdg = esc(gv(b, "defi_badge"));
   const tp = gv(b, "defi_title").split("|").map((p: string) => p.trim());
   const sub = esc(gv(b, "defi_subtitle"));
@@ -265,7 +323,7 @@ function genDefi(b: Block): string {
   return `
 <section id="bloc-defi" class="w-full py-6 sm:py-8 lg:py-12 px-4 sm:px-8 lg:px-16 overflow-hidden relative" style="background-color:#fff">
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="opacity:0.04">
-    <img src="${IMG}/images/eco-fond.svg" alt="" class="w-full max-w-[900px] h-auto object-contain"/>
+    <img src="${svg ? svg("eco-fond", "bloc4") : `${IMG}/images/eco-fond.svg`}" alt="" class="w-full max-w-[900px] h-auto object-contain"/>
   </div>
   <div class="max-w-5xl mx-auto flex flex-col items-center text-center relative z-10">
     <div class="rounded-lg px-5 py-1.5 border mb-4" style="border-color:#FFE500;background-color:#fff">
@@ -323,10 +381,10 @@ function genSolution(b: Block): string {
           <p class="text-[11px] sm:text-[12px] leading-[1.6] font-light" style="color:#555;font-family:'Poppins',sans-serif">${esc(s.text)}</p>
         </div>`).join("") : ""}
         <div class="rounded-[22px] px-5 sm:px-6 py-3.5 flex items-center gap-4 border-2" style="border-color:#FFE500;background-color:#FFE500">
-          <span class="text-[2.5rem] sm:text-[3rem] font-medium leading-none shrink-0" style="color:#2D9F46;font-family:'Bodoni Moda',serif">0€</span>
+          <span class="text-[2.5rem] sm:text-[3rem] font-medium leading-none shrink-0" style="color:#2D9F46;font-family:'Bodoni Moda',serif">${esc(gv(b, "solution_zero_amount") || "0€")}</span>
           <div>
-            <p class="text-[13px] sm:text-[14px] font-bold leading-tight mb-1" style="color:#000;font-family:'Poppins',sans-serif">de reste à charge</p>
-            <p class="text-[11px] sm:text-[12px] font-normal leading-[1.5]" style="color:#555;font-family:'Poppins',sans-serif">Prime CEE = intégralité du coût d'installation</p>
+            <p class="text-[13px] sm:text-[14px] font-bold leading-tight mb-1" style="color:#000;font-family:'Poppins',sans-serif">${esc(gv(b, "solution_zero_label") || "de reste à charge")}</p>
+            <p class="text-[11px] sm:text-[12px] font-normal leading-[1.5]" style="color:#555;font-family:'Poppins',sans-serif">${esc(gv(b, "solution_zero_sub") || "Prime CEE = intégralité du coût d'installation")}</p>
           </div>
         </div>
       </div>
@@ -391,7 +449,9 @@ function genPartenaire(b: Block): string {
 <section id="bloc-partenaire" class="w-full py-6 sm:py-8 lg:py-12 px-4 sm:px-8 lg:px-16 overflow-hidden" style="background-color:#fff">
   <div class="max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 sm:gap-10 lg:gap-14 items-center">
     <div class="lg:w-[48%] flex flex-col items-center justify-center gap-4 w-full">
-      <img src="${gv(b, "partenaire_image") || `${IMG}/images/pdf-extracts/page1_img2_878x470.jpeg`}" alt="Partenariat" class="w-full object-contain rounded-lg"/>
+      <div class="w-full rounded-lg overflow-hidden" style="height:320px">
+        <img src="${gv(b, "partenaire_image") || `${IMG}/images/pdf-extracts/page1_img2_878x470.jpeg`}" alt="Partenariat" class="w-full h-full object-cover"/>
+      </div>
       <div class="rounded-xl px-5 sm:px-10 py-4 sm:py-6 text-center w-fit border" style="background-color:#fff;border-color:#2D9F46">
         <p class="text-[13px] font-medium" style="color:#2D9F46;font-family:'Poppins',sans-serif">Partenariat officiel depuis</p>
         <p class="text-[2.8rem] sm:text-[4rem] font-extrabold italic mt-1 leading-none" style="color:#2D9F46;font-family:'Bodoni Moda',serif">2022</p>
@@ -423,7 +483,7 @@ function genPartenaire(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    CEE — fidèle à Bloc9CEE.tsx
    ═══════════════════════════════════════════════════════════ */
-function genCEE(b: Block): string {
+function genCEE(b: Block, svg?: SvgResolver): string {
   const bdg = esc(gv(b, "cee_badge"));
   const tp = gv(b, "cee_title").split("|").map((p: string) => p.trim());
   const sub = esc(gv(b, "cee_subtitle"));
@@ -447,7 +507,7 @@ function genCEE(b: Block): string {
       <div class="flex flex-col gap-4 lg:w-[48%]">
         <div class="rounded-[18px] px-5 py-4 flex flex-col" style="background-color:#C9E4D6">
           <h3 class="text-[13px] sm:text-[14px] font-bold mb-2" style="color:#000;font-family:'Poppins',sans-serif">${ft}</h3>
-          <p class="text-[1.3rem] sm:text-[1.6rem] lg:text-[1.9rem] font-bold leading-tight mb-1" style="color:#fff;font-family:'Poppins',sans-serif">${fm}</p>
+          <p class="text-[1.3rem] sm:text-[1.6rem] lg:text-[1.9rem] font-bold leading-tight mb-1" style="color:#2D9F46;font-family:'Poppins',sans-serif">${fm}</p>
           <p class="text-[10px] sm:text-[11px] font-medium" style="color:#000;font-family:'Poppins',sans-serif">Premier repère avant étude détaillée.</p>
         </div>
         ${rows ? `<div class="rounded-[18px] px-5 py-4 flex flex-col" style="background-color:#009B3A">
@@ -466,7 +526,7 @@ function genCEE(b: Block): string {
       </div>
       <div class="flex flex-col lg:w-[52%] gap-4">
         <div class="rounded-[20px] px-5 sm:px-7 py-5 sm:py-6 flex flex-col items-center text-center" style="background-color:#fff">
-          <img src="${IMG}/images/agriculture.svg" alt="" class="w-10 h-10 mb-3 object-contain"/>
+          <img src="${svg ? svg("agriculture", "bloc9") : `${IMG}/images/agriculture.svg`}" alt="" class="w-10 h-10 mb-3 object-contain"/>
           <h3 class="text-[1rem] sm:text-[1.15rem] font-bold mb-3" style="color:#009B3A;font-family:'Poppins',sans-serif">Repères réglementaires</h3>
           <div class="flex flex-col gap-2 mb-5 w-full">
             ${regl.map((r: string) => `<p class="text-[11px] sm:text-[12px] leading-[1.6] font-light" style="color:#333;font-family:'Poppins',sans-serif">${esc(r)}</p>`).join("")}
@@ -482,7 +542,7 @@ function genCEE(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    CONDITIONS — fidèle à Bloc10Conditions.tsx
    ═══════════════════════════════════════════════════════════ */
-function genConditions(b: Block): string {
+function genConditions(b: Block, svg?: SvgResolver): string {
   const bdg = esc(gv(b, "conditions_badge"));
   const tp = gv(b, "conditions_title").split("|").map((p: string) => p.trim());
   const sub = esc(gv(b, "conditions_subtitle"));
@@ -525,7 +585,7 @@ function genConditions(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    MÉTHODE — fidèle à Bloc12Methode.tsx
    ═══════════════════════════════════════════════════════════ */
-function genMethode(b: Block): string {
+function genMethode(b: Block, svg?: SvgResolver): string {
   const bdg = esc(gv(b, "methode_badge"));
   const tp = gv(b, "methode_title").split("|").map((p: string) => p.trim());
   const sub = esc(gv(b, "methode_subtitle"));
@@ -557,8 +617,8 @@ function genMethode(b: Block): string {
         </article>`).join("") : ""}
       </div>
     </div>
-    <div class="w-full rounded-[16px] px-5 sm:px-7 lg:px-10 py-5 sm:py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden" style="background-color:#00A84A">
-      <img src="${IMG}/images/agriculture.svg" alt="" class="absolute right-4 sm:right-6 lg:right-10 top-1/2 -translate-y-1/2 w-[180px] h-[120px] opacity-20 pointer-events-none object-contain"/>
+    <div class="w-full rounded-[16px] px-5 sm:px-7 lg:px-10 py-5 sm:py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative overflow-hidden" style="background-color:#1B7A2B">
+      <img src="${svg ? svg("agriculture", "bloc12") : `${IMG}/images/agriculture.svg`}" alt="" class="absolute right-4 sm:right-6 lg:right-10 top-1/2 -translate-y-1/2 w-[180px] h-[120px] opacity-20 pointer-events-none object-contain"/>
       <div class="relative z-10 md:w-[72%] text-left">
         <h3 class="text-[0.95rem] sm:text-[1.05rem] lg:text-[1.15rem] font-bold leading-[1.2] mb-2 md:whitespace-nowrap" style="color:#FFFFFF;font-family:'Poppins',sans-serif">${bh}</h3>
         <p class="text-[12px] sm:text-[13px] leading-[1.45] font-light mb-4" style="color:#FFFFFF;font-family:'Poppins',sans-serif">${bt}</p>
@@ -615,7 +675,7 @@ function genFAQ(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    CONTACT — fidèle à Bloc15Contact.tsx
    ═══════════════════════════════════════════════════════════ */
-function genContact(b: Block): string {
+function genContact(b: Block, svg?: SvgResolver): string {
   const title = esc(gv(b, "contact_title"));
   const sub = esc(gv(b, "contact_subtitle"));
   const sub2 = esc(gv(b, "contact_subtitle2"));
@@ -625,7 +685,7 @@ function genContact(b: Block): string {
 <section id="bloc-contact" class="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10 overflow-hidden" style="background-color:#fff">
   <div class="max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 lg:gap-8 items-center">
     <div class="flex justify-center lg:justify-start">
-      <img src="${IMG}/images/agriculture.svg" alt="Illustration" class="w-[220px] sm:w-[260px] lg:w-[300px] h-auto object-contain"/>
+      <img src="${svg ? svg("agriculture", "bloc15") : `${IMG}/images/agriculture.svg`}" alt="Illustration" class="w-[220px] sm:w-[260px] lg:w-[300px] h-auto object-contain"/>
     </div>
     <div class="w-full">
       <h2 class="leading-[1.12] flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-5 sm:mb-6">
@@ -654,28 +714,16 @@ function genContact(b: Block): string {
 /* ═══════════════════════════════════════════════════════════
    FOOTER — fidèle à Bloc16Footer.tsx
    ═══════════════════════════════════════════════════════════ */
-function genFooter(b: Block): string {
+function genFooter(b: Block, svg?: SvgResolver): string {
   const desc = esc(gv(b, "footer_description"));
   const copy = esc(gv(b, "footer_copyright"));
 
   return `
 <footer id="bloc-footer" class="w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12" style="background-color:#FFE500">
   <div class="max-w-[1240px] mx-auto flex flex-col gap-10 lg:gap-14">
-    <div class="flex flex-col lg:flex-row justify-between gap-10 lg:gap-16">
-      <div class="lg:w-[40%] flex flex-col gap-5">
-        <img src="${IMG}/images/logo-eco-Horizontblanc.svg" alt="Eco Environnement" class="w-[260px] sm:w-[320px] h-auto object-contain"/>
-        <p class="text-[12px] sm:text-[13px] leading-[1.6] font-medium" style="color:#000;font-family:'Poppins',sans-serif">${desc}</p>
-      </div>
-      <div class="lg:w-[55%] grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-6">
-        <div class="flex flex-col gap-4">
-          <h3 class="text-[14px] sm:text-[15px] font-bold" style="color:#000;font-family:'Poppins',sans-serif">Contact &amp; informations</h3>
-          <ul class="flex flex-col gap-2.5">
-            <li><a href="#bloc-contact" class="text-[12px] sm:text-[13px] font-medium hover:opacity-70 transition-opacity" style="color:#000;font-family:'Poppins',sans-serif">Demander mon estimation gratuite</a></li>
-            <li><a href="#" class="text-[12px] sm:text-[13px] font-medium hover:opacity-70 transition-opacity" style="color:#000;font-family:'Poppins',sans-serif">Mentions légales</a></li>
-            <li><a href="#" class="text-[12px] sm:text-[13px] font-medium hover:opacity-70 transition-opacity" style="color:#000;font-family:'Poppins',sans-serif">Politique de confidentialité</a></li>
-          </ul>
-        </div>
-      </div>
+    <div class="flex flex-col gap-5">
+      <img src="${svg ? svg("logo-footer", "bloc16") : `${IMG}/images/logo-eco-Horizontblanc.svg`}" alt="Eco Environnement" class="w-[260px] sm:w-[320px] h-auto object-contain"/>
+      <p class="text-[12px] sm:text-[13px] leading-[1.6] font-medium max-w-[640px]" style="color:#000;font-family:'Poppins',sans-serif">${desc}</p>
     </div>
     <div class="w-full flex flex-col sm:flex-row justify-between items-center gap-4">
       <p class="text-[11px] sm:text-[12px] font-medium" style="color:#000;font-family:'Poppins',sans-serif">${copy}</p>

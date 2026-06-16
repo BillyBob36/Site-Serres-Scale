@@ -13,10 +13,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const prisma = await getDb();
   const { id } = await params;
   const body = await req.json();
-  const { name, description, markdown, blocks, palettes, activePaletteLabel, blockPalettes } = body;
+  const { name, description, markdown, blocks, palettes, activePaletteLabel, blockPalettes, globalSvgs, blockSvgs, customSvgs } = body;
   const config = await prisma.configuration.update({
     where: { id },
-    data: { name, description: description ?? null, markdown: markdown ?? null, blocks, palettes: palettes ?? null, activePaletteLabel: activePaletteLabel ?? null, blockPalettes: blockPalettes ?? null },
+    data: { name, description: description ?? null, markdown: markdown ?? null, blocks, palettes: palettes ?? null, activePaletteLabel: activePaletteLabel ?? null, blockPalettes: blockPalettes ?? null, globalSvgs: globalSvgs ?? null, blockSvgs: blockSvgs ?? null, customSvgs: customSvgs ?? null },
   });
   return NextResponse.json(config);
 }

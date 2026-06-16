@@ -33,6 +33,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...mais on PARTAGE le modèle (sans valeurs) pour les repreneurs :
+!.env.example
 
 # vercel
 .vercel
@@ -49,6 +51,12 @@ next-env.d.ts
 
 # deployment artifacts
 *.tgz
+*.zip
+
+# build variants & local Azure deploy/debug artifacts (local only, do not share)
+/.next-build2/
+azure-logs*/
+create_zip.py
 
 .windsurf/
 *.db-shm

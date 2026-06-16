@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { injectSummarySectorLinks } from "./lib/summarySectorLinks";
+import { injectSummarySectorLinks } from "../lib/summarySectorLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ type Landing = {
 
 async function getPublicLandings(): Promise<Landing[]> {
   try {
-    const { getDb } = await import("./lib/db");
+    const { getDb } = await import("../lib/db");
     const prisma = await getDb();
     return await prisma.landing.findMany({
       where: { showInSummary: true },
@@ -31,7 +31,7 @@ function loadFragment(rel: string): string {
   return fs.readFileSync(p, "utf-8");
 }
 
-export default async function HomePage() {
+export default async function ContactPage() {
   const landings = await getPublicLandings();
   const byCategory: Record<string, Landing[]> = {};
   for (const l of landings) {
@@ -40,12 +40,8 @@ export default async function HomePage() {
     byCategory[cat].push(l);
   }
 
-  // Fragment complet (header + main + footer) extrait du site source.
-  // Fallback : ancien fragment "sector only" si full-page absent.
-  const rawFull = loadFragment("summary-sector/full-page.html");
-  const rawSector = loadFragment("summary-sector/fragment.html");
-  const baseHtml = rawFull || rawSector;
-  const html = baseHtml ? injectSummarySectorLinks(baseHtml, byCategory) : "";
+  const raw = loadFragment("contact/fragment.html");
+  const html = raw ? injectSummarySectorLinks(raw, byCategory) : "";
 
   return (
     <div
@@ -57,13 +53,11 @@ export default async function HomePage() {
         color: "#111111",
       }}
     >
-      {/* Polices alignées sur ecoenvironnement.net (les @font-face du scrape sont retirés à l'extraction) */}
       <link
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap"
       />
-      {/* CSS du site d'origine (Elementor) — images en data URL dans le fragment */}
-      <link rel="stylesheet" href="/summary-sector/sector.css" />
+      <link rel="stylesheet" href="/contact/contact.css" />
       <link rel="stylesheet" href="/summary-sector/layout-fix.css" />
       <script src="/js/eco-runtime.js" defer></script>
 
@@ -77,13 +71,9 @@ export default async function HomePage() {
       ) : (
         <div style={{ padding: 48, textAlign: "center", fontFamily: "system-ui" }}>
           <p style={{ color: "#666" }}>
-            Fragment de page absent. Lancer{" "}
+            Page contact absente. Lancer{" "}
             <code style={{ background: "#f4f4f4", padding: "2px 8px" }}>
-              node scripts/scrape-homepage.mjs
-            </code>{" "}
-            puis{" "}
-            <code style={{ background: "#f4f4f4", padding: "2px 8px" }}>
-              node scripts/extract-homepage-full.mjs
+              node scripts/scrape-contact.mjs
             </code>
             .
           </p>

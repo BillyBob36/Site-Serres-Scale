@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "postbuild": "shx cp -r .next-build/static .next-build/standalone/.next-build/static && shx cp -r public .next-build/standalone && shx cp -r prisma .next-build/standalone && shx cp prisma.config.ts .next-build/standalone",
+    "postbuild": "shx cp -r .next-build/static .next-build/standalone/.next-build/static && shx cp -r public .next-build/standalone && shx cp -r prisma .next-build/standalone && shx cp prisma.config.ts .next-build/standalone && shx cp init-db.js .next-build/standalone/ && shx cp startup.sh .next-build/standalone/ && node scripts/copy-libsql-native.js",
     "start": "node .next-build/standalone/server.js",
     "lint": "eslint"
   },

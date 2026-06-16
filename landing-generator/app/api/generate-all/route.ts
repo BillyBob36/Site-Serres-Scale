@@ -49,32 +49,46 @@ Réponds avec un seul objet JSON contenant tous les fieldId comme clés.`;
 
     const url = `${ENDPOINT}/openai/deployments/${DEPLOYMENT}/chat/completions?api-version=${API_VERSION}`;
 
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": API_KEY,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        max_completion_tokens: 8192,
-        temperature: 0.7,
-      }),
-    });
+    const MAX_RETRIES = 4;
+    let response: Response | null = null;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Azure Chat API error:", response.status, errText);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": API_KEY,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          max_completion_tokens: 8192,
+          temperature: 0.7,
+        }),
+      });
+
+      if (response.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = response.headers.get("retry-after");
+        const waitSec = retryAfter ? Math.min(parseInt(retryAfter, 10), 30) : (2 ** attempt) * 2;
+        console.warn(`Azure 429 rate limited, retry ${attempt + 1}/${MAX_RETRIES} after ${waitSec}s`);
+        await new Promise((r) => setTimeout(r, waitSec * 1000));
+        continue;
+      }
+      break;
+    }
+
+    if (!response!.ok) {
+      const errText = await response!.text();
+      console.error("Azure Chat API error:", response!.status, errText);
       return NextResponse.json(
-        { error: `Azure API error ${response.status}: ${errText}` },
+        { error: `Azure API error ${response!.status}: ${errText}` },
         { status: 500 }
       );
     }
 
-    const data = await response.json();
+    const data = await response!.json();
     const raw = data.choices?.[0]?.message?.content || "{}";
 
     // Parse JSON robustement (le modèle peut wrapper dans ```json)

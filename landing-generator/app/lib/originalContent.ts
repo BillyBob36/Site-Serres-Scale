@@ -19,7 +19,6 @@ export const originalContent: Record<string, string> = {
   hero_title_line2: "vos coûts de chauffage",
   hero_title_line3: "en serre",
   hero_subtitle: "Le déshumidificateur thermodynamique limite les pertes de chaleur, stabilise le climat de culture et réduit la charge de décision au quotidien.",
-  hero_secondary_subtitle: "Chaque saison avec une hygrométrie mal maîtrisée augmente vos coûts de chauffage et vos risques de pertes culturales.",
   hero_pricebox_amount: "100%",
   hero_pricebox_text: "Jusqu'à 100 % du projet peut être couvert par la prime CEE, selon votre configuration.",
   hero_cta1: "Vérifier mon éligibilité en 2 min",
@@ -53,6 +52,9 @@ export const originalContent: Record<string, string> = {
     { title: "Condensation et récupération d'énergie", text: "Les calories utiles sont récupérées au lieu d'être perdues avec la ventilation." },
     { title: "Réinjection d'air sec et chaud", text: "L'air plus sec et tempéré est redistribué pour stabiliser le climat de culture." },
   ]),
+  solution_zero_amount: "0€",
+  solution_zero_label: "de reste à charge",
+  solution_zero_sub: "Prime CEE = intégralité du coût d'installation",
   solution_image: "",
 
   // ── BLOC 3 — CONFIANCE ──

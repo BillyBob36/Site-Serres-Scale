@@ -13,12 +13,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const prisma = await getDb();
   const body = await req.json();
-  const { name, description, markdown, blocks, palettes, activePaletteLabel, blockPalettes } = body;
+  const { name, description, markdown, blocks, palettes, activePaletteLabel, blockPalettes, globalSvgs, blockSvgs, customSvgs } = body;
   if (!name || !blocks) {
     return NextResponse.json({ error: "name and blocks required" }, { status: 400 });
   }
   const config = await prisma.configuration.create({
-    data: { name, description: description ?? null, markdown: markdown ?? null, blocks, palettes: palettes ?? null, activePaletteLabel: activePaletteLabel ?? null, blockPalettes: blockPalettes ?? null },
+    data: { name, description: description ?? null, markdown: markdown ?? null, blocks, palettes: palettes ?? null, activePaletteLabel: activePaletteLabel ?? null, blockPalettes: blockPalettes ?? null, globalSvgs: globalSvgs ?? null, blockSvgs: blockSvgs ?? null, customSvgs: customSvgs ?? null },
   });
   return NextResponse.json(config, { status: 201 });
 }

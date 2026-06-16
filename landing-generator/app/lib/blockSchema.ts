@@ -148,13 +148,6 @@ export const defaultBlockSchema: Block[] = [
         value: "",
       },
       {
-        id: "hero_secondary_subtitle",
-        label: "Sous-titre secondaire (douleur)",
-        type: "textarea",
-        prompt: `Rédige une phrase d'environ 117 caractères (max 20 mots) qui rappelle le coût de l'inaction : que se passe-t-il si le client ne fait rien ? Formulation factuelle, sans dramatisation excessive. Réponds uniquement avec le texte.`,
-        value: "",
-      },
-      {
         id: "hero_pricebox_amount",
         label: "Cartouche — chiffre clé",
         type: "text",
@@ -292,6 +285,27 @@ export const defaultBlockSchema: Block[] = [
         label: "3 étapes de fonctionnement (JSON array)",
         type: "cards",
         prompt: `Décris le fonctionnement de la solution en 3 étapes. Pour chaque étape, génère un objet JSON avec "title" (3-5 mots, environ 30 caractères) et "text" (1 phrase d'environ 78 caractères). Réponds en JSON array de 3 objets.`,
+        value: "",
+      },
+      {
+        id: "solution_zero_amount",
+        label: "Montant reste à charge (ex: 0€)",
+        type: "text",
+        prompt: `Indique le montant du reste à charge pour le client après prime CEE. Par défaut "0€". Réponds uniquement avec le texte (3-5 caractères max).`,
+        value: "",
+      },
+      {
+        id: "solution_zero_label",
+        label: "Label reste à charge",
+        type: "text",
+        prompt: `Rédige un label court (environ 18 caractères) qualifiant le montant ci-dessus. Exemple : "de reste à charge". Réponds uniquement avec le texte.`,
+        value: "",
+      },
+      {
+        id: "solution_zero_sub",
+        label: "Sous-texte reste à charge",
+        type: "text",
+        prompt: `Rédige une phrase courte d'environ 48 caractères expliquant pourquoi le reste à charge est nul. Exemple : "Prime CEE = intégralité du coût d'installation". Réponds uniquement avec le texte.`,
         value: "",
       },
       {

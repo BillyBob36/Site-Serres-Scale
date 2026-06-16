@@ -3,13 +3,13 @@
 
 name: Build and deploy Node.js app to Azure Web App - serres-landing-gen
 
+# ⚠️ AUTO-DÉPLOIEMENT DÉSACTIVÉ — voir landing-generator/DEPLOY.md
+# Ce workflow déploie vers l'App Service Azure de l'ANCIEN propriétaire
+# (`serres-landing-gen`) et nécessite SES secrets OIDC `AZUREAPPSERVICE_*`.
+# Le déclenchement automatique sur `push` a été retiré pour éviter tout
+# redéploiement involontaire de la production existante.
+# Nouveaux mainteneurs : remplacez ce fichier par le pipeline de VOTRE infra.
 on:
-  push:
-    branches:
-      - master
-    paths:
-      - "landing-generator/**"
-      - ".github/workflows/master_serres-landing-gen.yml"
   workflow_dispatch:
 
 jobs:

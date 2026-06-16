@@ -73,6 +73,9 @@ async function initDb() {
     ["palettes", "TEXT"],
     ["activePaletteLabel", "TEXT"],
     ["blockPalettes", "TEXT"],
+    ["globalSvgs", "TEXT"],
+    ["blockSvgs", "TEXT"],
+    ["customSvgs", "TEXT"],
   ]) {
     try {
       await client.execute(

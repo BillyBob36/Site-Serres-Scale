@@ -34,9 +34,16 @@ type ConfigSummary = { id: string; name: string; description?: string | null; up
 type LandingSummary = { id: string; name: string; slug?: string | null; showInSummary?: boolean; category?: string | null; createdAt: string };
 type Palette = { label: string; colors: string[] };
 import { defaultBlockSchema, Block, BlockField, FieldMode } from "../lib/blockSchema";
-import { generateLandingHTML } from "../lib/htmlGenerator";
+import { generateLandingHTML, SVG_SLOTS, SvgSlotKey, SvgBlockOverrides } from "../lib/htmlGenerator";
 import ImageCropModal from "../components/ImageCropModal";
 import { useTranslation } from "../lib/i18n/i18nContext";
+
+// Available SVG library (files in /svg-library/)
+const SVG_LIBRARY = [
+  "agriculture.svg", "bureaux.svg", "collectivites.svg", "commerce.svg",
+  "datacenter.svg", "distribution.svg", "hotel.svg", "industrie.svg", "sante.svg",
+  "logo-serres.svg", "eco-fond.svg", "logo-eco-Horizontblanc.svg",
+];
 
 const DEFAULT_PALETTE: Palette = {
   label: "A",
@@ -84,6 +91,12 @@ export default function Home() {
   const [extractingPalette, setExtractingPalette] = useState(false);
   const [newPaletteColors, setNewPaletteColors] = useState("");
   const [dragColor, setDragColor] = useState<{ color: string; fromLabel: string; fromIdx: number } | null>(null);
+  // SVG overrides
+  const [globalSvgs, setGlobalSvgs] = useState<Record<string, string>>({});
+  const [blockSvgs, setBlockSvgs] = useState<SvgBlockOverrides>({});
+  const [svgPickerTarget, setSvgPickerTarget] = useState<{ slotKey: string; blockId?: string } | null>(null);
+  const [customSvgs, setCustomSvgs] = useState<string[]>([]); // user-uploaded SVG data URLs
+  const svgUploadRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [elapsedSec, setElapsedSec] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -215,13 +228,16 @@ export default function Home() {
     setBlocks((prev) => {
       const block = prev.find((b) => b.id === blockId);
       if (!block) return prev;
-      const allOriginal = block.fields.every((f) => f.mode === 'original');
+      // Only consider non-image fields for the toggle logic
+      const textFields = block.fields.filter((f) => f.type !== 'image');
+      const allOriginal = textFields.every((f) => f.mode === 'original');
       const newMode: FieldMode = allOriginal ? 'generated' : 'original';
       return prev.map((b) =>
         b.id === blockId
           ? {
               ...b,
-              fields: b.fields.map((f) => ({ ...f, mode: newMode })),
+              // Toggle text fields only — images stay on 'original'
+              fields: b.fields.map((f) => f.type === 'image' ? f : { ...f, mode: newMode }),
             }
           : b
       );
@@ -539,39 +555,51 @@ export default function Home() {
       );
       const textFields = block.fields.filter((f) => f.type !== "image" && f.mode !== 'original');
       if (textFields.length === 0) continue;
-      try {
-        const res = await fetch("/api/generate-all", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fields: textFields.map((f) => ({
-              fieldId: f.id,
-              prompt: f.prompt,
-              fieldType: f.type,
-            })),
-            markdownContent: markdown,
-          }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
+      // Delay between blocks to avoid Azure OpenAI 429 rate limits
+      if (i > 0) await new Promise((r) => setTimeout(r, 1500));
+      let success = false;
+      for (let attempt = 0; attempt < 3 && !success; attempt++) {
+        try {
+          if (attempt > 0) {
+            setStatusMsg(`Retry ${attempt}/2 bloc "${block.name}"...`);
+            await new Promise((r) => setTimeout(r, 3000 * attempt));
+          }
+          const res = await fetch("/api/generate-all", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fields: textFields.map((f) => ({
+                fieldId: f.id,
+                prompt: f.prompt,
+                fieldType: f.type,
+              })),
+              markdownContent: markdown,
+            }),
+          });
+          const data = await res.json();
+          if (data.error) throw new Error(data.error);
 
-        setBlocks((prev) =>
-          prev.map((b) =>
-            b.id === block.id
-              ? {
-                  ...b,
-                  fields: b.fields.map((f) =>
-                    data.results[f.id] !== undefined
-                      ? { ...f, value: data.results[f.id] }
-                      : f
-                  ),
-                }
-              : b
-          )
-        );
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Erreur inconnue";
-        setStatusMsg(`Erreur bloc "${block.name}": ${msg}`);
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? {
+                    ...b,
+                    fields: b.fields.map((f) =>
+                      data.results[f.id] !== undefined
+                        ? { ...f, value: data.results[f.id] }
+                        : f
+                    ),
+                  }
+                : b
+            )
+          );
+          success = true;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : "Erreur inconnue";
+          if (attempt === 2) {
+            setStatusMsg(`Erreur bloc "${block.name}": ${msg}`);
+          }
+        }
       }
     }
     // Phase 2: generate images for image fields in "generated" mode
@@ -676,7 +704,7 @@ export default function Home() {
   const saveConfigUpdate = async () => {
     if (!saveName.trim() || !currentConfigId) return;
     try {
-      const body = { name: saveName, description: saveDesc, markdown, blocks: JSON.stringify(blocks), palettes: JSON.stringify(palettes), activePaletteLabel, blockPalettes: JSON.stringify(blockPalettes) };
+      const body = { name: saveName, description: saveDesc, markdown, blocks: JSON.stringify(blocks), palettes: JSON.stringify(palettes), activePaletteLabel, blockPalettes: JSON.stringify(blockPalettes), globalSvgs: JSON.stringify(globalSvgs), blockSvgs: JSON.stringify(blockSvgs), customSvgs: JSON.stringify(customSvgs) };
       await fetch(`/api/configs/${currentConfigId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       setStatusMsg(`Config "${saveName}" mise à jour`);
       setShowSaveModal(false);
@@ -705,6 +733,15 @@ export default function Home() {
       if (data.activePaletteLabel) setActivePaletteLabel(data.activePaletteLabel);
       if (data.blockPalettes) {
         try { setBlockPalettes(JSON.parse(data.blockPalettes)); } catch { /* keep current */ }
+      }
+      if (data.globalSvgs) {
+        try { setGlobalSvgs(JSON.parse(data.globalSvgs)); } catch { /* keep current */ }
+      }
+      if (data.blockSvgs) {
+        try { setBlockSvgs(JSON.parse(data.blockSvgs)); } catch { /* keep current */ }
+      }
+      if (data.customSvgs) {
+        try { setCustomSvgs(JSON.parse(data.customSvgs)); } catch { /* keep current */ }
       }
       setCurrentConfigId(data.id);
       setSaveName(data.name);
@@ -737,7 +774,7 @@ export default function Home() {
   const saveLanding = async () => {
     if (!saveLandingName.trim()) return;
     try {
-      const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors);
+      const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors, globalSvgs, blockSvgs);
       const res = await fetch("/api/landings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -820,14 +857,14 @@ export default function Home() {
   };
 
   const openPreview = () => {
-    const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors);
+    const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors, globalSvgs, blockSvgs);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
   };
 
   const downloadHTML = () => {
-    const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors);
+    const html = generateLandingHTML(blocks, palettes.find((p) => p.label === activePaletteLabel)?.colors, globalSvgs, blockSvgs);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1148,6 +1185,125 @@ export default function Home() {
               </div>
             </div>
 
+            {/* ── SVG / LOGOS SECTION ── */}
+            <div className="mb-4 rounded-xl border border-zinc-700 bg-zinc-900 p-3 space-y-2">
+              <h3 className="text-xs font-semibold text-zinc-300 flex items-center gap-2">
+                <ImageIcon size={12} className="text-green-400" />
+                Logos &amp; Illustrations SVG
+              </h3>
+              <div className="space-y-1.5">
+                {SVG_SLOTS.map((slot) => {
+                  const currentUrl = globalSvgs[slot.key] || `/svg-library/${slot.default}`;
+                  const displayName = globalSvgs[slot.key]
+                    ? (globalSvgs[slot.key].startsWith("data:") ? "SVG uploadé" : globalSvgs[slot.key].split("/").pop())
+                    : slot.default;
+                  return (
+                    <div key={slot.key} className="flex items-center gap-2 bg-zinc-800/50 rounded-lg px-2 py-1.5">
+                      <div className="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={currentUrl} alt={slot.key} className="w-6 h-6 object-contain" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] text-zinc-400 truncate">{slot.label}</div>
+                        <div className="text-[10px] text-zinc-500 truncate">{displayName}</div>
+                      </div>
+                      <button
+                        onClick={() => setSvgPickerTarget({ slotKey: slot.key })}
+                        className="text-[9px] bg-zinc-700 text-zinc-300 px-2 py-0.5 rounded hover:bg-zinc-600 transition whitespace-nowrap"
+                      >
+                        Changer
+                      </button>
+                      {globalSvgs[slot.key] && (
+                        <button
+                          onClick={() => setGlobalSvgs((prev) => { const n = { ...prev }; delete n[slot.key]; return n; })}
+                          className="text-[9px] text-zinc-600 hover:text-red-400 transition"
+                          title="Rétablir l'original"
+                        >✕</button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* SVG Picker Modal */}
+            {svgPickerTarget && (
+              <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center" onClick={() => setSvgPickerTarget(null)}>
+                <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-4 w-[400px] max-h-[500px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-zinc-200">
+                      Choisir un SVG — {svgPickerTarget.blockId ? `Bloc ${svgPickerTarget.blockId}` : "Global"}
+                    </h3>
+                    <button onClick={() => setSvgPickerTarget(null)} className="text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 mb-3">
+                    {[...SVG_LIBRARY, ...customSvgs].map((svgItem, i) => {
+                      const isCustom = svgItem.startsWith("data:");
+                      const url = isCustom ? svgItem : `/svg-library/${svgItem}`;
+                      const label = isCustom ? `Custom ${i - SVG_LIBRARY.length + 1}` : svgItem.replace(".svg", "");
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            if (svgPickerTarget.blockId) {
+                              const bk = `${svgPickerTarget.blockId}:${svgPickerTarget.slotKey}`;
+                              setBlockSvgs((prev) => ({ ...prev, [bk]: url }));
+                            } else {
+                              setGlobalSvgs((prev) => ({ ...prev, [svgPickerTarget.slotKey]: url }));
+                            }
+                            setSvgPickerTarget(null);
+                            setStatusMsg(`SVG mis à jour`);
+                          }}
+                          className="flex flex-col items-center gap-1 p-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 transition"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={url} alt={label} className="w-10 h-10 object-contain" />
+                          <span className="text-[8px] text-zinc-500 truncate w-full text-center">{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => svgUploadRef.current?.click()}
+                      className="flex-1 text-[10px] bg-zinc-800 text-zinc-300 px-3 py-1.5 rounded-lg hover:bg-zinc-700 border border-zinc-700 transition"
+                    >
+                      <Upload size={10} className="inline mr-1" />
+                      Charger un SVG
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+            <input
+              ref={svgUploadRef}
+              type="file"
+              accept=".svg"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  const dataUrl = ev.target?.result as string;
+                  setCustomSvgs((prev) => [...prev, dataUrl]);
+                  // Apply immediately to current target
+                  if (svgPickerTarget) {
+                    if (svgPickerTarget.blockId) {
+                      const bk = `${svgPickerTarget.blockId}:${svgPickerTarget.slotKey}`;
+                      setBlockSvgs((prev) => ({ ...prev, [bk]: dataUrl }));
+                    } else {
+                      setGlobalSvgs((prev) => ({ ...prev, [svgPickerTarget.slotKey]: dataUrl }));
+                    }
+                    setSvgPickerTarget(null);
+                  }
+                  setStatusMsg(`SVG "${file.name}" ajouté`);
+                };
+                reader.readAsDataURL(file);
+                e.target.value = "";
+              }}
+            />
+
             <h2 className="text-sm font-semibold mb-3 flex items-center gap-2">
               <LayoutGrid size={16} className="text-green-400" />
               Arbre des blocs ({blocks.filter((b) => b.enabled).length}/{blocks.length} actifs)
@@ -1216,7 +1372,7 @@ export default function Home() {
                       className="flex items-center gap-1 text-zinc-400 hover:text-green-400 px-1.5 py-1 rounded text-xs transition"
                       title="Cocher/décocher tous les champs du bloc"
                     >
-                      {block.fields.every((f) => f.mode !== 'original') ? (
+                      {block.fields.filter((f) => f.type !== 'image').every((f) => f.mode !== 'original') ? (
                         <CheckSquare size={14} className="text-green-400" />
                       ) : (
                         <Square size={14} />
@@ -1245,6 +1401,42 @@ export default function Home() {
                       ))}
                     </select>
                   </div>
+
+                  {/* PER-BLOCK SVG OVERRIDES */}
+                  {expandedBlocks.has(block.id) && block.enabled && SVG_SLOTS.filter(s => (s.blocks as readonly string[]).includes(block.id)).length > 0 && (
+                    <div className="px-4 pt-2 space-y-1">
+                      {SVG_SLOTS.filter(s => (s.blocks as readonly string[]).includes(block.id)).map((slot) => {
+                        const bk = `${block.id}:${slot.key}`;
+                        const hasOverride = !!blockSvgs[bk];
+                        const url = blockSvgs[bk] || globalSvgs[slot.key] || `/svg-library/${slot.default}`;
+                        const label = hasOverride
+                          ? (blockSvgs[bk].startsWith("data:") ? "SVG custom" : blockSvgs[bk].split("/").pop()?.replace(".svg", ""))
+                          : globalSvgs[slot.key]
+                            ? `global: ${globalSvgs[slot.key].startsWith("data:") ? "custom" : globalSvgs[slot.key].split("/").pop()?.replace(".svg", "")}`
+                            : slot.default.replace(".svg", "");
+                        return (
+                          <div key={slot.key} className="flex items-center gap-2 bg-zinc-800/30 rounded px-2 py-1">
+                            <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={url} alt="" className="w-4 h-4 object-contain" />
+                            </div>
+                            <span className="text-[9px] text-zinc-500 flex-1 truncate">{slot.label} — <span className={hasOverride ? "text-yellow-400" : "text-zinc-600"}>{label}</span></span>
+                            <button
+                              onClick={() => setSvgPickerTarget({ slotKey: slot.key, blockId: block.id })}
+                              className="text-[8px] bg-zinc-700 text-zinc-400 px-1.5 py-0.5 rounded hover:bg-zinc-600 transition"
+                            >Changer</button>
+                            {hasOverride && (
+                              <button
+                                onClick={() => setBlockSvgs((prev) => { const n = { ...prev }; delete n[bk]; return n; })}
+                                className="text-[8px] text-zinc-600 hover:text-red-400 transition"
+                                title="Utiliser le global"
+                              >✕</button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* BLOCK FIELDS */}
                   {expandedBlocks.has(block.id) && block.enabled && (

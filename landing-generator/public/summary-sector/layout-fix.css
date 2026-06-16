@@ -71,3 +71,282 @@
   height: auto !important;
   display: block !important;
 }
+
+/* ─────────── Header pleine largeur ─────────── */
+[data-elementor-summary-emulated="true"] header.elementor-location-header,
+[data-elementor-summary-emulated="true"] header.elementor-location-header .elementor-section,
+[data-elementor-summary-emulated="true"] header.elementor-location-header [data-element_type="container"] {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+[data-elementor-summary-emulated="true"] header.elementor-location-header > .elementor-element {
+  max-width: 100% !important;
+}
+/* Force la barre interne du header à occuper toute la fenêtre + padding latéral */
+[data-elementor-summary-emulated="true"] header.elementor-location-header .e-con-boxed > .e-con-inner,
+[data-elementor-summary-emulated="true"] header.elementor-location-header .elementor-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: clamp(16px, 3vw, 40px) !important;
+  padding-right: clamp(16px, 3vw, 40px) !important;
+  box-sizing: border-box !important;
+}
+
+/* ─────────── Mega-menu Secteur d'activité (CSS-only) ─────────── */
+.eco-mega-menu-secteur {
+  list-style: none;
+}
+.eco-mega-menu-secteur .eco-mm-trigger {
+  color: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+}
+.eco-mega-menu-secteur .eco-mm-trigger:hover,
+.eco-mega-menu-secteur:hover .eco-mm-trigger,
+.eco-mega-menu-secteur:focus-within .eco-mm-trigger {
+  color: #00a340;
+}
+.eco-mega-menu-secteur .eco-mm-panel {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  min-width: 240px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s linear 0.15s;
+  z-index: 1000;
+}
+.eco-mega-menu-secteur:hover .eco-mm-panel,
+.eco-mega-menu-secteur:focus-within .eco-mm-panel,
+.eco-mega-menu-secteur .eco-mm-trigger[aria-expanded="true"] + .eco-mm-panel {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  transition-delay: 0s;
+}
+.eco-mega-menu-secteur .eco-mm-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: #111;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  transition: background 0.12s ease;
+}
+.eco-mega-menu-secteur .eco-mm-item:hover {
+  background: #f1f7f2;
+  color: #00a340;
+}
+.eco-mega-menu-secteur .eco-mm-item[aria-disabled="true"] {
+  color: #999;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ─────────── Carousels : conteneur en overflow + liserets gris ───────────
+   L'animation est gérée par /js/eco-runtime.js (mesure + Web Animations API). */
+[data-elementor-summary-emulated="true"] .swiper,
+[data-elementor-summary-emulated="true"] .e-n-carousel {
+  overflow: hidden !important;
+}
+[data-elementor-summary-emulated="true"] .swiper-wrapper {
+  align-items: center;
+}
+/* Liserets gris par défaut autour des items (about, autres) */
+[data-elementor-summary-emulated="true"] .swiper-slide {
+  border: 1px solid #d6d6d6;
+  border-radius: 14px;
+  padding: 14px;
+  background: #ffffff;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  margin-right: 16px;
+}
+[data-elementor-summary-emulated="true"] .swiper-slide:last-child {
+  margin-right: 0;
+}
+[data-elementor-summary-emulated="true"] .swiper-slide img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ─── Carousel custom "Nos clients" (remplace le widget swiper Elementor) ───
+   Marquee CSS pure : translate -50% sur un track qui contient 2× les logos.
+   Animation continue, pause au hover. */
+.eco-clients-carousel {
+  width: 100%;
+  overflow: hidden;
+  padding: 32px 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 80px, #000 calc(100% - 80px), transparent 100%);
+}
+.eco-clients-carousel .eco-clients-track {
+  display: flex;
+  align-items: center;
+  gap: 80px;
+  width: max-content;
+  animation: eco-clients-scroll 70s linear infinite;
+}
+.eco-clients-carousel:hover .eco-clients-track {
+  animation-play-state: paused;
+}
+.eco-clients-carousel .eco-clients-slide {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 90px;
+  min-width: 80px;
+}
+.eco-clients-carousel .eco-clients-slide img {
+  height: 80px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+  display: block;
+}
+@keyframes eco-clients-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (max-width: 768px) {
+  .eco-clients-carousel { padding: 20px 0; }
+  .eco-clients-carousel .eco-clients-track { gap: 48px; animation-duration: 50s; }
+  .eco-clients-carousel .eco-clients-slide { height: 64px; }
+  .eco-clients-carousel .eco-clients-slide img { height: 56px; max-width: 160px; }
+}
+
+/* Cache les flèches/pagination (pas de logique Swiper côté JS) */
+[data-elementor-summary-emulated="true"] .swiper-button-next,
+[data-elementor-summary-emulated="true"] .swiper-button-prev,
+[data-elementor-summary-emulated="true"] .swiper-pagination {
+  display: none !important;
+}
+
+/* ─────────── Logos du header : -20% (Eco + TotalEnergies) ───────────
+   Le source définit .elementor-element-296f6dc img{width:129px} et
+   .elementor-element-98a28c5 img{width:228px}. On les réduit ~20%.
+   On NE force PAS height:auto/width:auto, sinon les SVG s'écrasent
+   (les attrs HTML sont width=768 height=1, faux). */
+header.elementor-location-header .elementor-element-296f6dc img {
+  width: 103px !important;          /* Eco logo : 129 → 103 (-20%) */
+}
+header.elementor-location-header .elementor-element-98a28c5 img {
+  width: 182px !important;          /* TotalEnergies : 228 → 182 (-20%) */
+}
+
+/* ─── Spans inactifs (Mentions/CGU/etc) dans le footer ─── */
+.eco-footer-static {
+  color: inherit;
+  cursor: default;
+  text-decoration: none;
+  pointer-events: none;
+}
+
+/* ─────────── Header sticky avec hide-on-scroll ─────────── */
+header.elementor-location-header {
+  position: sticky !important;
+  top: 0;
+  z-index: 1000;
+  transition: transform 0.28s ease;
+  background: #fff;
+  will-change: transform;
+}
+header.elementor-location-header[data-eco-hide="1"] {
+  transform: translateY(-110%);
+}
+
+/* ─────────── Mobile : burger + drawer ─────────── */
+@media (max-width: 1024px) {
+  /* Affiche le bouton burger Elementor */
+  header.elementor-location-header .e-n-menu-toggle {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+  }
+  header.elementor-location-header .e-n-menu-toggle::before {
+    content: "";
+    width: 22px;
+    height: 16px;
+    background: linear-gradient(#222 2px, transparent 2px) 0 0/100% 33%,
+                linear-gradient(#222 2px, transparent 2px) 0 50%/100% 33%,
+                linear-gradient(#222 2px, transparent 2px) 0 100%/100% 33%;
+    background-repeat: no-repeat;
+  }
+  /* Cache la nav horizontale par défaut sur mobile */
+  header.elementor-location-header .e-n-menu-wrapper,
+  header.elementor-location-header .elementor-nav-menu--main {
+    display: none !important;
+  }
+  /* Drawer mobile : visible quand data-eco-mobile-open="1" sur le header */
+  header.elementor-location-header[data-eco-mobile-open="1"] .e-n-menu-wrapper {
+    display: flex !important;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10);
+    padding: 12px 20px 20px;
+    gap: 4px;
+    z-index: 999;
+  }
+  header.elementor-location-header[data-eco-mobile-open="1"] .e-n-menu,
+  header.elementor-location-header[data-eco-mobile-open="1"] .e-n-menu > .e-n-menu-list {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100%;
+    gap: 4px;
+  }
+  header.elementor-location-header[data-eco-mobile-open="1"] .e-n-menu-item {
+    width: 100%;
+    border-bottom: 1px solid #efefef;
+    padding: 10px 0;
+  }
+}
+
+/* ─────────── Fix "Le moteur de votre transition énergétique" ───────────
+   Le titre se cassait sur 2 lignes en full screen ; on lève la contrainte
+   max-width sur le widget heading 64a7440 et on force nowrap au-dessus de 1200px. */
+[data-elementor-summary-emulated="true"] .elementor-element-64a7440 {
+  max-width: none !important;
+}
+@media (min-width: 1200px) {
+  [data-elementor-summary-emulated="true"] .elementor-element-64a7440 .elementor-heading-title {
+    white-space: nowrap;
+  }
+}
+
+/* ─────────── Cadres "Nous appeler" / "Nous écrire" sur contact ─────────── */
+[data-elementor-summary-emulated="true"] .page-content .elementor-icon-box-wrapper,
+[data-elementor-summary-emulated="true"] .page-content .elementor-widget-icon-box {
+  background: #fff;
+}
+/* Heuristique : on encadre les containers qui contiennent un widget icon-box ou
+   un titre "Nous appeler/écrire/rencontrer". Ne casse rien si non détecté. */
+[data-elementor-summary-emulated="true"] .page-content .e-con.e-con-boxed:has(.elementor-icon-box-wrapper),
+[data-elementor-summary-emulated="true"] .page-content .e-con.e-con-boxed:has(.elementor-widget-icon-box) {
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 16px;
+  padding: 24px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+

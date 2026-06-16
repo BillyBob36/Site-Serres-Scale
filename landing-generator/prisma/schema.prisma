@@ -16,6 +16,9 @@ model Configuration {
   palettes           String?  // JSON stringified palettes array
   activePaletteLabel String?
   blockPalettes      String?  // JSON stringified block→palette mapping
+  globalSvgs         String?  // JSON stringified global SVG overrides
+  blockSvgs          String?  // JSON stringified per-block SVG overrides
+  customSvgs         String?  // JSON stringified user-uploaded SVG data URLs
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

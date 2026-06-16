@@ -1,0 +1,28 @@
+# ===========================================================================
+#  landing-generator — déploiement conteneurisé (portable, indépendant d'Azure)
+#
+#  Usage :
+#    1) cp .env.example .env      # puis renseignez vos valeurs
+#    2) docker compose up -d --build
+#    3) ouvrez http://localhost:3000   (espace admin : /app-admin)
+#
+#  Les données (base SQLite) sont persistées dans le volume `landing-data`
+#  monté sur /home/data — elles survivent aux redémarrages et rebuilds.
+# ===========================================================================
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: landing-generator:latest
+    container_name: landing-generator
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - landing-data:/home/data
+
+volumes:
+  landing-data:

@@ -1,3 +1,5 @@
+> 📦 **Reprise du projet / déploiement sur votre propre serveur :** voir **[DEPLOY.md](./DEPLOY.md)** et **[.env.example](./.env.example)**.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

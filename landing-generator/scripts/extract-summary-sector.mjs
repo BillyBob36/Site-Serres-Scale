@@ -63,17 +63,41 @@ grid.removeClass("elementor-hidden-tablet elementor-hidden-mobile");
 // Cartes hors périmètre (sous-domaines du site d’origine, non dans notre liste admin)
 grid.find('[data-id="ce481fe"],[data-id="3e84006"]').remove();
 
+// Mapping titre de secteur → fichier SVG dans /svg-library
+// (Résidentiel et Transport n'ont pas de fichier dédié → pas de badge)
+const SECTOR_SVG = {
+  "Santé": "/svg-library/sante.svg",
+  "Collectivité": "/svg-library/collectivites.svg",
+  "Commerce": "/svg-library/commerce.svg",
+  "Bureaux": "/svg-library/bureaux.svg",
+  "Hôtellerie": "/svg-library/hotel.svg",
+  "Distribution": "/svg-library/distribution.svg",
+  "Industrie": "/svg-library/industrie.svg",
+  "Agriculture": "/svg-library/agriculture.svg",
+  "Data center": "/svg-library/datacenter.svg",
+};
+
+// Injecte un badge SVG en haut à droite de chaque carte de secteur.
+// Chaque carte est un <a> enfant de .e-con-inner. On opère sur la grille originale
+// (re-cloned plus bas via $w.append).
+grid.find("a.e-child").each((_, el) => {
+  const $a = $(el);
+  const titleText = $a.find(".elementor-heading-title").text().trim().replace(/\s+/g, " ");
+  // Normalise "Industrie &amp;<br>Data center" qui peut apparaître sous plusieurs formes
+  const cleanTitle = titleText.replace(/\s*&\s*/g, " & ");
+  const svgPath = SECTOR_SVG[cleanTitle] || SECTOR_SVG[titleText];
+  if (!svgPath) return;
+  const existingStyle = $a.attr("style") || "";
+  $a.attr("style", (existingStyle ? existingStyle + ";" : "") + "position:relative");
+  $a.append(
+    `<img src="${svgPath}" alt="" aria-hidden="true" class="eco-sector-badge" style="position:absolute;top:12px;right:12px;width:28px;height:28px;object-fit:contain;pointer-events:none;z-index:2"/>`,
+  );
+});
+
 const wrap = cheerio.load("<div></div>", null, false);
 const $w = wrap("*").first();
 $w.attr("id", "eco-summary-sector-root");
 $w.append(titleBlock.clone());
-$w.append(
-  `<div class="eco-summary-subtitle-wrap" style="text-align:center;padding:8px 20px 20px;font-family:Poppins,sans-serif">
-  <p style="margin:0 auto;max-width:720px;font-size:clamp(15px,1.8vw,18px);font-weight:300;color:#333;line-height:1.5">
-    Choisissez votre secteur et on optimise énergétiquement votre bâtiment
-  </p>
-</div>`,
-);
 $w.append(grid.clone());
 
 let fragment = wrap.html();
